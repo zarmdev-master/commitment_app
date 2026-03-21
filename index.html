@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Commitment Tracker</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-light: #818cf8;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --border: #334155;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px 16px;
+    }
+    .app { max-width: 960px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .pill-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .pill-ctrl label { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+    .pill-ctrl select {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 680px) { .layout { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-body { padding: 16px; }
+
+    /* ── Month separator ────────────────────────────────────────── */
+    .month-sep {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin: 18px 0 10px;
+    }
+    .month-sep:first-child { margin-top: 0; }
+    .month-sep-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .month-sep-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .month-sep-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .month-sep-badge.met   { background: rgba(34,197,94,0.15);  color: var(--success); }
+    .month-sep-badge.unmet { background: rgba(239,68,68,0.15);  color: var(--danger);  }
+
+    /* ── Week cards ─────────────────────────────────────────────── */
+    .week-card {
+      background: var(--surface2);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .week-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .week-card-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .status-badge { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
+    .week-dates   { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; }
+    .week-progress {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .week-progress.met    { background: rgba(34,197,94,0.15);  color: var(--success); }
+    .week-progress.unmet  { background: rgba(239,68,68,0.15);  color: var(--danger);  }
+    .week-progress.empty  { background: var(--bg); color: var(--text-muted); }
+    .comp-note {
+      font-size: 0.7rem;
+      color: #f59e0b;
+      background: rgba(245,158,11,0.12);
+      border-radius: 20px;
+      padding: 2px 7px;
+    }
+    .week-meta { display: flex; align-items: center; gap: 6px; }
+    .icon-btn {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; padding: 3px 6px; border-radius: 5px;
+      font-size: 0.85rem; opacity: 0.5; transition: opacity 0.15s, color 0.15s;
+    }
+    .icon-btn:hover { opacity: 1; }
+    .icon-btn.del:hover { color: var(--danger); }
+    .chevron { transition: transform 0.2s; color: var(--text-muted); font-size: 0.75rem; }
+    .chevron.open { transform: rotate(180deg); }
+    .week-card-body { padding: 0 14px 14px; }
+
+    /* ── Day entries ─────────────────────────────────────────────── */
+    .day-entry {
+      display: flex; align-items: flex-start; gap: 9px;
+      padding: 7px 0; border-bottom: 1px solid var(--border);
+    }
+    .day-entry:last-child { border-bottom: none; }
+    .day-badge {
+      background: var(--primary); color: white;
+      font-size: 0.68rem; font-weight: 700; padding: 3px 7px;
+      border-radius: 6px; min-width: 40px; text-align: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .activity-text { flex: 1; font-size: 0.875rem; line-height: 1.45; word-break: break-word; }
+
+    /* ── Add-entry form ──────────────────────────────────────────── */
+    .add-form {
+      margin-top: 12px; background: var(--bg);
+      border-radius: 9px; padding: 12px;
+    }
+    .form-label {
+      font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 5px;
+    }
+    .form-section { margin-bottom: 10px; }
+    .form-row { display: flex; gap: 7px; flex-wrap: wrap; }
+    select, input {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; color: var(--text); padding: 7px 10px;
+      font-size: 0.85rem; outline: none; transition: border-color 0.15s;
+    }
+    select:focus, input:focus { border-color: var(--primary); }
+    .sel-day { width: 86px; }
+    .inp-act { flex: 1; min-width: 130px; }
+
+    /* ── Chips ───────────────────────────────────────────────────── */
+    .chip-strip { display: flex; gap: 5px; flex-wrap: wrap; }
+    .chip {
+      border-radius: 6px; padding: 5px 10px; cursor: pointer;
+      font-size: 0.82rem; font-weight: 500; line-height: 1.2;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text);
+    }
+    .chip:hover  { background: var(--primary); border-color: var(--primary); color: white; }
+    .chip.active { background: var(--primary); border-color: var(--primary); color: white; font-weight: 700; }
+    .emoji-chip  { font-size: 1rem; padding: 4px 7px; }
+    .add-preset-btn {
+      background: transparent; border: 1px dashed var(--border);
+      border-radius: 6px; padding: 4px 9px; color: var(--text-muted);
+      cursor: pointer; font-size: 0.78rem; transition: all 0.15s;
+    }
+    .add-preset-btn:hover { border-color: var(--primary); color: var(--primary-light); }
+
+    /* Duration error shake */
+    .dur-error .form-label { color: var(--danger); }
+    .dur-error .chip-strip {
+      outline: 2px solid var(--danger); border-radius: 8px;
+      padding: 3px; animation: shake 0.3s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      60%      { transform: translateX(6px); }
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      padding: 7px 14px; border-radius: 7px; border: none;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-light); }
+    .btn-ghost {
+      background: var(--surface2); color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover  { color: var(--text); border-color: var(--primary-light); }
+    .btn-ghost.active { color: var(--primary-light); border-color: var(--primary-light); }
+
+    .add-week-btn {
+      width: 100%; padding: 9px; background: transparent;
+      border: 2px dashed var(--border); border-radius: 10px;
+      color: var(--text-muted); cursor: pointer; font-size: 0.82rem;
+      transition: all 0.15s; margin-bottom: 4px;
+    }
+    .add-week-btn:hover { border-color: var(--primary); color: var(--primary-light); }
+
+    /* ── New month row ───────────────────────────────────────────── */
+    .new-month-row {
+      display: flex; gap: 8px; align-items: center;
+      margin-top: 16px; padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .new-month-row select { flex: 1; }
+
+    .no-entries { color: var(--text-muted); font-size: 0.82rem; padding: 4px 0 10px; }
+
+    /* ── Preview ─────────────────────────────────────────────────── */
+    .preview-sticky { position: sticky; top: 20px; }
+    .preview-text {
+      padding: 18px; font-size: 0.95rem; line-height: 2; min-height: 160px;
+    }
+    .preview-text .wa-bold { font-weight: 700; color: #fff; }
+    .preview-text .wa-line { display: block; }
+    .preview-empty {
+      text-align: center; color: var(--text-muted);
+      font-size: 0.85rem; padding: 48px 20px;
+    }
+    .copy-btn.copied { background: var(--success); }
+    .preview-header-btns { display: flex; gap: 8px; align-items: center; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>💪 Commitment Tracker</h1>
+    <div class="pill-ctrl">
+      <label for="goalSel">Goal</label>
+      <select id="goalSel">
+        <option value="2">2 days/wk</option>
+        <option value="3">3 days/wk</option>
+        <option value="4">4 days/wk</option>
+        <option value="5">5 days/wk</option>
+        <option value="6">6 days/wk</option>
+        <option value="7">7 days/wk</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="panel-header"><span>Weeks</span></div>
+        <div class="panel-body" id="weeksContainer"></div>
+      </div>
+    </div>
+    <div class="preview-sticky">
+      <div class="panel">
+        <div class="panel-header">
+          <span>WhatsApp Preview</span>
+          <div class="preview-header-btns">
+            <button class="btn btn-ghost" id="modeBtn">📚 History</button>
+            <button class="btn btn-primary copy-btn" id="copyBtn">📋 Copy</button>
+          </div>
+        </div>
+        <div id="previewArea"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MONTHS    = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+  const DAYS      = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+  const EMOJIS    = ['🏋🏻‍♀️','🎾','🏐','🏃‍♀️','🚴‍♀️','🏊‍♀️','🧘‍♀️','🧖🏻‍♀️','⚽','🏀','🥊','🧠'];
+  const DURATIONS = ['30 min','40 min','45 min','1h','1h 15','1h 30','2h'];
+  const DEFAULT_PRESETS = [
+    'gym 🏋🏻‍♀️','padel Training 🎾','beach volleyball 🏐',
+    'spa wellness 🧖🏻‍♀️','leg work out with Eliza','running 🏃‍♀️','yoga 🧘‍♀️','cycling 🚴‍♀️',
+  ];
+
+  // State: allMonths is { 'March': [weekObj, ...], 'April': [...] }
+  let state = { goal: 3, allMonths: {}, presets: [], previewMode: 'current' };
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  function init() {
+    const now = new Date();
+    const realMonth = MONTHS[now.getMonth()];
+
+    // Load saved state (try v5, migrate from v4)
+    const savedV5 = localStorage.getItem('commitmentTracker_v5');
+    if (savedV5) {
+      try { state = JSON.parse(savedV5); } catch(e) {}
+    } else {
+      const savedV4 = localStorage.getItem('commitmentTracker_v4');
+      if (savedV4) {
+        try {
+          const old = JSON.parse(savedV4);
+          state.goal    = old.goal || 3;
+          state.presets = old.presets || [...DEFAULT_PRESETS];
+          const m = old.month || realMonth;
+          state.allMonths[m] = old.weeks || [];
+        } catch(e) {}
+      }
+    }
+
+    // Defaults
+    if (!state.allMonths)  state.allMonths  = {};
+    if (!state.presets || !state.presets.length) state.presets = [...DEFAULT_PRESETS];
+    if (!state.goal)       state.goal       = 3;
+    if (!state.previewMode) state.previewMode = 'current';
+
+    // Ensure current real month exists
+    if (!state.allMonths[realMonth] || state.allMonths[realMonth].length === 0) {
+      state.allMonths[realMonth] = [{
+        id: Date.now(), number: Math.ceil(now.getDate() / 7), open: true, days: []
+      }];
+    }
+
+    // Goal selector
+    const goalSel = document.getElementById('goalSel');
+    goalSel.value = String(state.goal);
+    goalSel.addEventListener('change', e => { state.goal = +e.target.value; save(); render(); });
+
+    // Preview mode toggle
+    const modeBtn = document.getElementById('modeBtn');
+    modeBtn.addEventListener('click', () => {
+      state.previewMode = state.previewMode === 'current' ? 'history' : 'current';
+      modeBtn.textContent    = state.previewMode === 'current' ? '📚 History' : '📄 Current';
+      modeBtn.classList.toggle('active', state.previewMode === 'history');
+      save(); renderPreview();
+    });
+    if (state.previewMode === 'history') {
+      modeBtn.textContent = '📄 Current';
+      modeBtn.classList.add('active');
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', copyText);
+    render();
+  }
+
+  function save() {
+    localStorage.setItem('commitmentTracker_v5', JSON.stringify(state));
+  }
+
+  function render() { renderWeeks(); renderPreview(); }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function uniqueDays(week) {
+    return new Set(week.days.map(e => e.day)).size;
+  }
+
+  function weekDateRange(weekNum, month) {
+    const monthIdx  = MONTHS.indexOf(month);
+    const year      = new Date().getFullYear();
+    const startDay  = (weekNum - 1) * 7 + 1;
+    const daysInMon = new Date(year, monthIdx + 1, 0).getDate();
+    const endDay    = Math.min(weekNum * 7, daysInMon);
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${fmt(new Date(year, monthIdx, startDay))} – ${fmt(new Date(year, monthIdx, endDay))}`;
+  }
+
+  /**
+   * Compute statuses for an array of weeks within one month.
+   * Left-to-right pass: each week's "extra days" pool is reduced when used
+   * for compensation, preventing the same extras from being reused.
+   */
+  function computeWeekStatuses(weeks) {
+    const n = weeks.length;
+    const remaining = weeks.map(w => Math.max(0, uniqueDays(w) - state.goal));
+    const statuses  = new Array(n);
+
+    for (let i = 0; i < n; i++) {
+      const days = uniqueDays(weeks[i]);
+      if (days === 0)         { statuses[i] = 'empty';     continue; }
+      if (days >= state.goal) { statuses[i] = 'completed'; continue; }
+      const needed = 2 * (state.goal - days);
+      const prevA  = i > 0     ? remaining[i - 1] : 0;
+      const nextA  = i < n - 1 ? remaining[i + 1] : 0;
+      if (prevA >= needed)      { remaining[i - 1] -= needed; statuses[i] = 'compensated'; }
+      else if (nextA >= needed) { remaining[i + 1] -= needed; statuses[i] = 'compensated'; }
+      else                      { statuses[i] = 'failed'; }
+    }
+    return statuses;
+  }
+
+  function computeMonthSummary(weeks, statuses) {
+    const active = weeks.filter(w => w.days.length > 0);
+    if (!active.length) return null;
+    const total      = active.length;
+    const passed     = statuses.filter((s, i) =>
+      weeks[i].days.length > 0 && (s === 'completed' || s === 'compensated')).length;
+    const allPassed  = passed === total;
+    const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
+    return { total, passed, allPassed, hasPerfect };
+  }
+
+  /** Months that have at least one week (with or without entries), in calendar order */
+  function trackedMonths() {
+    return MONTHS.filter(m => state.allMonths[m] && state.allMonths[m].length > 0);
+  }
+
+  /** Months that have at least one entry */
+  function activeMonths() {
+    return trackedMonths().filter(m => state.allMonths[m].some(w => w.days.length > 0));
+  }
+
+  function nextWeekNumber(month) {
+    const mw = state.allMonths[month] || [];
+    return mw.length ? Math.max(...mw.map(w => w.number)) + 1 : 1;
+  }
+
+  // ── Render Weeks Panel ────────────────────────────────────────────────────
+
+  function renderWeeks() {
+    const container = document.getElementById('weeksContainer');
+    container.innerHTML = '';
+
+    const months = trackedMonths();
+
+    months.forEach((month, mi) => {
+      const weeks    = state.allMonths[month];
+      const statuses = computeWeekStatuses(weeks);
+      const summary  = computeMonthSummary(weeks, statuses);
+
+      // Month separator
+      const sep = document.createElement('div');
+      sep.className = 'month-sep';
+      sep.innerHTML = `<span class="month-sep-title">${month}</span><span class="month-sep-line"></span>`;
+      if (summary) {
+        const icon = summary.allPassed ? '✅' : '❌';
+        const badge = document.createElement('span');
+        badge.className = `month-sep-badge ${summary.allPassed ? 'met' : 'unmet'}`;
+        badge.textContent = `${icon} ${summary.passed}/${summary.total}`;
+        sep.appendChild(badge);
+        if (summary.hasPerfect) {
+          const star = document.createElement('span');
+          star.textContent = '⭐';
+          star.title = 'Perfect week this month!';
+          star.style.fontSize = '1.1rem';
+          sep.appendChild(star);
+        }
+      }
+      container.appendChild(sep);
+
+      // Week cards
+      weeks.forEach((week, localWi) => {
+        container.appendChild(buildWeekCard(week, localWi, month, statuses[localWi]));
+      });
+
+      // Per-month "Add Week" button
+      const addWkBtn = document.createElement('button');
+      addWkBtn.className = 'add-week-btn';
+      addWkBtn.textContent = `+ Add week to ${month}`;
+      addWkBtn.addEventListener('click', () => {
+        state.allMonths[month].push({ id: Date.now(), number: nextWeekNumber(month), open: true, days: [] });
+        save(); render();
+      });
+      container.appendChild(addWkBtn);
+    });
+
+    // ── New month section ────────────────────────────────────────
+    const unstarted = MONTHS.filter(m => !state.allMonths[m] || state.allMonths[m].length === 0);
+    if (unstarted.length) {
+      const row = document.createElement('div');
+      row.className = 'new-month-row';
+
+      const sel = document.createElement('select');
+      unstarted.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = m;
+        sel.appendChild(opt);
+      });
+      // Pre-select next calendar month after the last tracked
+      const last = months[months.length - 1];
+      if (last) {
+        const next = MONTHS[(MONTHS.indexOf(last) + 1) % 12];
+        if (unstarted.includes(next)) sel.value = next;
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = '+ New month';
+      btn.style.fontSize = '0.82rem';
+      btn.addEventListener('click', () => {
+        const m   = sel.value;
+        const now = new Date();
+        const wn  = MONTHS.indexOf(m) === now.getMonth() ? Math.ceil(now.getDate() / 7) : 1;
+        if (!state.allMonths[m]) state.allMonths[m] = [];
+        state.allMonths[m].push({ id: Date.now(), number: wn, open: true, days: [] });
+        save(); render();
+      });
+
+      row.appendChild(sel);
+      row.appendChild(btn);
+      container.appendChild(row);
+    }
+  }
+
+  function buildWeekCard(week, localWi, month, status) {
+    const days        = uniqueDays(week);
+    const statusEmoji = (status === 'completed' || status === 'compensated') ? '✅' : status === 'failed' ? '❌' : '○';
+    const progCls     = (status === 'completed' || status === 'compensated') ? 'met' : status === 'failed' ? 'unmet' : 'empty';
+    const compNote    = status === 'compensated' ? '<span class="comp-note">compensated</span>' : '';
+    const key         = `${month}-${localWi}`;
+
+    const card = document.createElement('div');
+    card.className = 'week-card';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'week-card-header';
+    hdr.innerHTML = `
+      <div class="week-card-title">
+        <span class="status-badge">${statusEmoji}</span>
+        <div>
+          <div>Week ${week.number} <span class="week-dates">${weekDateRange(week.number, month)}</span></div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+            <span class="week-progress ${progCls}">${days}/${state.goal} days</span>${compNote}
+          </div>
+        </div>
+      </div>
+      <div class="week-meta">
+        <button class="icon-btn del" data-action="del" title="Delete week">✕</button>
+        <span class="chevron ${week.open ? 'open' : ''}">▼</span>
+      </div>
+    `;
+    hdr.addEventListener('click', e => {
+      if (e.target.closest('[data-action="del"]')) {
+        if (week.days.length === 0 || confirm('Delete this week and all entries?')) {
+          state.allMonths[month].splice(localWi, 1);
+          if (!state.allMonths[month].length) delete state.allMonths[month];
+          save(); render();
+        }
+        return;
+      }
+      week.open = !week.open;
+      save(); renderWeeks();
+    });
+    card.appendChild(hdr);
+
+    if (!week.open) return card;
+
+    const body = document.createElement('div');
+    body.className = 'week-card-body';
+
+    // Entries
+    if (!week.days.length) {
+      body.innerHTML = '<div class="no-entries">No entries yet — use the form below.</div>';
+    } else {
+      const list = document.createElement('div');
+      week.days.forEach((entry, ei) => {
+        const row = document.createElement('div');
+        row.className = 'day-entry';
+        row.innerHTML = `
+          <span class="day-badge">${entry.day}</span>
+          <span class="activity-text">${escHtml(entry.activity)}</span>
+          <button class="icon-btn del" title="Remove">✕</button>
+        `;
+        row.querySelector('button').addEventListener('click', () => {
+          state.allMonths[month][localWi].days.splice(ei, 1);
+          save(); render();
+        });
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+    }
+
+    // ── Form ─────────────────────────────────────────────────────
+    const form = document.createElement('div');
+    form.className = 'add-form';
+
+    // Day + Activity
+    const inpSec = document.createElement('div');
+    inpSec.className = 'form-section';
+    inpSec.innerHTML = `
+      <div class="form-label">Day &amp; activity</div>
+      <div class="form-row">
+        <select class="sel-day" id="day-${key}">
+          ${DAYS.map(d => `<option>${d}</option>`).join('')}
+        </select>
+        <input class="inp-act" type="text" id="act-${key}" placeholder="Type or tap a preset below…" />
+      </div>
+    `;
+    form.appendChild(inpSec);
+
+    // Duration
+    const durSec = document.createElement('div');
+    durSec.className = 'form-section';
+    const durLabel = document.createElement('div');
+    durLabel.className = 'form-label';
+    durLabel.textContent = 'Duration';
+    const durChips = document.createElement('div');
+    durChips.className = 'chip-strip';
+    DURATIONS.forEach(d => {
+      const btn = document.createElement('button');
+      btn.className = 'chip'; btn.textContent = d; btn.dataset.dur = d;
+      btn.addEventListener('click', () => {
+        durChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        durSec.classList.remove('dur-error');
+      });
+      durChips.appendChild(btn);
+    });
+    durSec.appendChild(durLabel);
+    durSec.appendChild(durChips);
+    form.appendChild(durSec);
+
+    // Presets
+    const preSec = document.createElement('div');
+    preSec.className = 'form-section';
+    const preLabel = document.createElement('div');
+    preLabel.className = 'form-label';
+    preLabel.textContent = 'Quick activities';
+    const preStrip = document.createElement('div');
+    preStrip.className = 'chip-strip';
+    state.presets.forEach((p, pi) => {
+      const btn = document.createElement('button');
+      btn.className = 'chip'; btn.textContent = p; btn.title = 'Right-click to remove';
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(`act-${key}`);
+        if (inp) { inp.value = p; inp.focus(); }
+      });
+      btn.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        if (confirm(`Remove preset "${p}"?`)) { state.presets.splice(pi, 1); save(); render(); }
+      });
+      preStrip.appendChild(btn);
+    });
+    const savePresetBtn = document.createElement('button');
+    savePresetBtn.className = 'add-preset-btn';
+    savePresetBtn.textContent = '+ Save as preset';
+    savePresetBtn.addEventListener('click', () => {
+      const val = (document.getElementById(`act-${key}`)?.value || '').trim();
+      if (!val) { alert('Type an activity first.'); return; }
+      if (!state.presets.includes(val)) { state.presets.push(val); save(); render(); }
+    });
+    preStrip.appendChild(savePresetBtn);
+    preSec.appendChild(preLabel);
+    preSec.appendChild(preStrip);
+    form.appendChild(preSec);
+
+    // Emojis
+    const emoSec = document.createElement('div');
+    emoSec.className = 'form-section';
+    const emoLabel = document.createElement('div');
+    emoLabel.className = 'form-label';
+    emoLabel.textContent = 'Add emoji';
+    const emoStrip = document.createElement('div');
+    emoStrip.className = 'chip-strip';
+    EMOJIS.forEach(e => {
+      const btn = document.createElement('button');
+      btn.className = 'chip emoji-chip'; btn.textContent = e;
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(`act-${key}`);
+        if (inp) { inp.value += e; inp.focus(); }
+      });
+      emoStrip.appendChild(btn);
+    });
+    emoSec.appendChild(emoLabel);
+    emoSec.appendChild(emoStrip);
+    form.appendChild(emoSec);
+
+    // Add button
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;justify-content:flex-end;margin-top:4px';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary';
+    addBtn.textContent = '+ Add entry';
+    addBtn.addEventListener('click', () => doAddEntry(month, localWi, durSec, durChips, key));
+    addRow.appendChild(addBtn);
+    form.appendChild(addRow);
+
+    setTimeout(() => {
+      const el = document.getElementById(`act-${key}`);
+      if (el) el.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') doAddEntry(month, localWi, durSec, durChips, key);
+      });
+    }, 0);
+
+    body.appendChild(form);
+    card.appendChild(body);
+    return card;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  function doAddEntry(month, localWi, durSec, durChips, key) {
+    const day = document.getElementById(`day-${key}`)?.value;
+    const act = (document.getElementById(`act-${key}`)?.value || '').trim();
+    if (!act) return;
+    const chip = durChips.querySelector('.chip.active');
+    if (!chip) {
+      durSec.classList.remove('dur-error');
+      void durSec.offsetWidth;
+      durSec.classList.add('dur-error');
+      return;
+    }
+    state.allMonths[month][localWi].days.push({ day, activity: `${chip.dataset.dur} ${act}` });
+    save(); render();
+  }
+
+  // ── Preview ───────────────────────────────────────────────────────────────
+
+  /** Full detail text for one month */
+  function buildMonthText(month) {
+    const weeks      = state.allMonths[month] || [];
+    const statuses   = computeWeekStatuses(weeks);
+    const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
+    let text = `*${month}*${hasPerfect ? '⭐' : ''}\n`;
+    weeks.forEach((week, wi) => {
+      const s     = statuses[wi];
+      const emoji = s === 'completed' ? '✅' : s === 'compensated' ? '☑️' : s === 'failed' ? '❌' : '';
+      text += ` *Week ${week.number}*${emoji} \n`;
+      const byDay = {};
+      week.days.forEach(e => { (byDay[e.day] = byDay[e.day] || []).push(e.activity); });
+      DAYS.forEach(d => { if (byDay[d]) text += `${d}: ${byDay[d].join(' + ')}\n`; });
+    });
+    return text;
+  }
+
+  /** Compact 1-line summary for a past month */
+  function buildMonthSummaryLine(month) {
+    const weeks    = state.allMonths[month] || [];
+    const statuses = computeWeekStatuses(weeks);
+    const summary  = computeMonthSummary(weeks, statuses);
+    if (!summary) return '';
+    const icon = summary.allPassed ? '✅' : '❌';
+    return `*${month}* ${icon} ${summary.passed}/${summary.total}${summary.hasPerfect ? ' ⭐' : ''}\n`;
+  }
+
+  function currentMonth() {
+    const active = activeMonths();
+    return active.length ? active[active.length - 1] : MONTHS[new Date().getMonth()];
+  }
+
+  function renderPreview() {
+    const area   = document.getElementById('previewArea');
+    const months = activeMonths();
+    if (!months.length) {
+      area.innerHTML = '<div class="preview-empty">Add some activities to see the preview</div>';
+      return;
+    }
+
+    const cur = currentMonth();
+    let raw = '';
+
+    if (state.previewMode === 'history') {
+      months.forEach(m => {
+        raw += m === cur ? buildMonthText(m) : buildMonthSummaryLine(m);
+      });
+    } else {
+      raw = buildMonthText(cur);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className   = 'preview-text';
+    wrap.dataset.raw = raw;
+    raw.split('\n').forEach(line => {
+      const span = document.createElement('span');
+      span.className = 'wa-line';
+      span.innerHTML = escHtml(line).replace(/\*([^*]+)\*/g, '<strong class="wa-bold">$1</strong>');
+      wrap.appendChild(span);
+    });
+    area.innerHTML = '';
+    area.appendChild(wrap);
+  }
+
+  function copyText() {
+    const pre = document.querySelector('.preview-text');
+    if (!pre) return;
+    navigator.clipboard.writeText(pre.dataset.raw || '').then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✅ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  init();
+</script>
+</body>
+</html>
