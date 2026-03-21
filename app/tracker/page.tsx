@@ -546,24 +546,26 @@ export default function TrackerPage() {
 
   // Reload data when user switches
   useEffect(() => {
+    let cancelled = false;
     setHydrated(false);
     const now       = new Date();
     const realMonth = MONTHS[now.getMonth()];
     const key       = `pacepal_tracker_${activeUser}`;
 
     function applyDefaults(raw: AppState): AppState {
-      if (!raw.allMonths)   raw.allMonths   = {};
-      if (!raw.goal)        raw.goal        = 3;
-      if (!raw.previewMode) raw.previewMode = 'current';
-      const existing = raw.presets ?? [];
+      const r = JSON.parse(JSON.stringify(raw)) as AppState; // deep clone — never mutate source
+      if (!r.allMonths)   r.allMonths   = {};
+      if (!r.goal)        r.goal        = 3;
+      if (!r.previewMode) r.previewMode = 'current';
+      const existing = r.presets ?? [];
       const existingSet = new Set(existing);
-      raw.presets = [...existing, ...DEFAULT_PRESETS.filter(p => !existingSet.has(p))];
-      if (!raw.allMonths[realMonth]?.length) {
-        raw.allMonths[realMonth] = [{
+      r.presets = [...existing, ...DEFAULT_PRESETS.filter(p => !existingSet.has(p))];
+      if (!r.allMonths[realMonth]?.length) {
+        r.allMonths[realMonth] = [{
           id: Date.now(), number: Math.ceil(now.getDate() / 7), open: true, days: [],
         }];
       }
-      return raw;
+      return r;
     }
 
     // 1. Show localStorage immediately for instant load
@@ -573,13 +575,16 @@ export default function TrackerPage() {
     const hasLocalActivity = Object.values(local.allMonths ?? {}).some(
       (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
     );
-    if (!hasLocalActivity && SEED_DATA[activeUser]) local = { ...SEED_DATA[activeUser] };
-    setState(applyDefaults(local));
-    loadedForUser.current = activeUser;
-    setHydrated(true);
+    if (!hasLocalActivity && SEED_DATA[activeUser]) local = SEED_DATA[activeUser];
+    if (!cancelled) {
+      setState(applyDefaults(local));
+      loadedForUser.current = activeUser;
+      setHydrated(true);
+    }
 
     // 2. Fetch from Supabase — cloud is source of truth
     loadUserData(activeUser).then(cloudRaw => {
+      if (cancelled) return; // user switched away before this resolved
       if (!cloudRaw) return;
       const cloud = cloudRaw as AppState;
       const hasCloudActivity = Object.values(cloud.allMonths ?? {}).some(
@@ -590,6 +595,8 @@ export default function TrackerPage() {
       setState(merged);
       localStorage.setItem(key, JSON.stringify(merged));
     });
+
+    return () => { cancelled = true; };
   }, [activeUser]);
 
   useEffect(() => {
