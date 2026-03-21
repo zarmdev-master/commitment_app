@@ -542,6 +542,7 @@ export default function TrackerPage() {
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied]     = useState(false);
   const [newMonthSel, setNewMonthSel] = useState('');
+  const loadedForUser = useRef('');
 
   // Reload data when user switches
   useEffect(() => {
@@ -574,27 +575,29 @@ export default function TrackerPage() {
     );
     if (!hasLocalActivity && SEED_DATA[activeUser]) local = { ...SEED_DATA[activeUser] };
     setState(applyDefaults(local));
+    loadedForUser.current = activeUser;
     setHydrated(true);
 
     // 2. Fetch from Supabase — cloud is source of truth
     loadUserData(activeUser).then(cloudRaw => {
-      if (!cloudRaw) return; // no cloud record yet — local is fine
+      if (!cloudRaw) return;
       const cloud = cloudRaw as AppState;
       const hasCloudActivity = Object.values(cloud.allMonths ?? {}).some(
         (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
       );
-      if (!hasCloudActivity && SEED_DATA[activeUser]) return; // cloud is empty, keep local
+      if (!hasCloudActivity && SEED_DATA[activeUser]) return;
       const merged = applyDefaults(cloud);
       setState(merged);
-      localStorage.setItem(key, JSON.stringify(merged)); // update local cache
+      localStorage.setItem(key, JSON.stringify(merged));
     });
   }, [activeUser]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    // Only save when the loaded data actually belongs to the current user
+    if (!hydrated || loadedForUser.current !== activeUser) return;
     const key = `pacepal_tracker_${activeUser}`;
     localStorage.setItem(key, JSON.stringify(state));
-    saveUserData(activeUser, state); // sync to cloud in background
+    saveUserData(activeUser, state);
   }, [state, hydrated, activeUser]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
