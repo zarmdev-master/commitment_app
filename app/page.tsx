@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 const ACTIVE_MODULES = [
   {
@@ -28,6 +29,20 @@ export default function HomePage() {
           A little corner for building tools that make tracking fitness easier.
           No subscriptions, no bloat — just the stuff that&apos;s actually useful.
         </p>
+
+        <div className="creator-card">
+          <Image
+            src="/zoja.jpg"
+            alt="Zoja"
+            width={48}
+            height={48}
+            className="creator-photo"
+          />
+          <div className="creator-text">
+            <span className="creator-name">Made by Zoja</span>
+            <span className="creator-sub">personal project · built for fun</span>
+          </div>
+        </div>
       </div>
 
       <div style={{ marginBottom: 36 }}>

@@ -95,6 +95,13 @@ function buildMonthSummaryLine(month: string, allMonths: AllMonths, goal: number
   return `*${month}* ${icon} ${summary.passed}/${summary.total}${summary.hasPerfect ? ' ⭐' : ''}\n`;
 }
 
+function weeksInMonth(month: string): number {
+  const monthIdx   = MONTHS.indexOf(month);
+  const year       = new Date().getFullYear();
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  return Math.ceil(daysInMonth / 7);
+}
+
 function escHtml(s: string) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -270,6 +277,81 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
   );
 }
 
+// ── MonthSection ─────────────────────────────────────────────────────────────
+// Manages its own week-number input so each month tracks its own default
+
+function MonthSection({ month, weeks, statuses, summary, goal, presets, onUpdateDays, onDeleteWeek, onToggleOpen, onUpdatePresets, onAddWeek }: {
+  month: string;
+  weeks: Week[];
+  statuses: string[];
+  summary: ReturnType<typeof computeMonthSummary>;
+  goal: number;
+  presets: string[];
+  onUpdateDays: (month: string, wi: number, days: Entry[]) => void;
+  onDeleteWeek: (month: string, wi: number) => void;
+  onToggleOpen: (month: string, wi: number) => void;
+  onUpdatePresets: (presets: string[]) => void;
+  onAddWeek: (month: string, weekNum: number) => void;
+}) {
+  const maxWeek = weeksInMonth(month);
+  const nextNum = weeks.length
+    ? Math.min(Math.max(...weeks.map(w => w.number)) + 1, maxWeek)
+    : 1;
+  const [weekNum, setWeekNum] = useState(nextNum);
+
+  // Keep default in sync as weeks are added/removed
+  useEffect(() => {
+    const next = weeks.length
+      ? Math.min(Math.max(...weeks.map(w => w.number)) + 1, maxWeek)
+      : 1;
+    setWeekNum(next);
+  }, [weeks.length, maxWeek]);
+
+  return (
+    <div>
+      <div className="month-sep">
+        <span className="month-sep-title">{month}</span>
+        <span className="month-sep-line" />
+        {summary && (
+          <>
+            <span className={`month-sep-badge ${summary.allPassed ? 'met' : 'unmet'}`}>
+              {summary.allPassed ? '✅' : '❌'} {summary.passed}/{summary.total}
+            </span>
+            {summary.hasPerfect && (
+              <span style={{ fontSize: '1rem' }} title="Perfect week!">⭐</span>
+            )}
+          </>
+        )}
+      </div>
+
+      {weeks.map((week, wi) => (
+        <WeekCard
+          key={week.id}
+          week={week} localWi={wi} month={month}
+          status={statuses[wi]} goal={goal} presets={presets}
+          onUpdate={onUpdateDays} onDelete={onDeleteWeek} onToggleOpen={onToggleOpen}
+          onUpdatePresets={onUpdatePresets}
+        />
+      ))}
+
+      <div className="add-week-row">
+        <span className="add-week-label">Week</span>
+        <input
+          type="number"
+          className="week-num-input"
+          value={weekNum}
+          min={1}
+          max={maxWeek}
+          onChange={e => setWeekNum(Math.min(maxWeek, Math.max(1, parseInt(e.target.value) || 1)))}
+        />
+        <button className="add-week-btn" onClick={() => onAddWeek(month, weekNum)}>
+          + Add to {month}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function TrackerPage() {
@@ -367,10 +449,10 @@ export default function TrackerPage() {
       return { ...s, allMonths: months };
     });
 
-  const addWeek = (month: string) =>
+  const addWeek = (month: string, weekNum: number) =>
     setState(s => {
       const months  = { ...s.allMonths };
-      months[month] = [...months[month], { id: Date.now(), number: nextWeekNumber(month), open: true, days: [] }];
+      months[month] = [...months[month], { id: Date.now(), number: weekNum, open: true, days: [] }];
       return { ...s, allMonths: months };
     });
 
@@ -462,36 +544,14 @@ export default function TrackerPage() {
                 const statuses = computeWeekStatuses(weeks, state.goal);
                 const summary  = computeMonthSummary(weeks, statuses);
                 return (
-                  <div key={month}>
-                    <div className="month-sep">
-                      <span className="month-sep-title">{month}</span>
-                      <span className="month-sep-line" />
-                      {summary && (
-                        <>
-                          <span className={`month-sep-badge ${summary.allPassed ? 'met' : 'unmet'}`}>
-                            {summary.allPassed ? '✅' : '❌'} {summary.passed}/{summary.total}
-                          </span>
-                          {summary.hasPerfect && (
-                            <span style={{ fontSize: '1rem' }} title="Perfect week!">⭐</span>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {weeks.map((week, wi) => (
-                      <WeekCard
-                        key={week.id}
-                        week={week} localWi={wi} month={month}
-                        status={statuses[wi]} goal={state.goal} presets={state.presets}
-                        onUpdate={updateWeekDays} onDelete={deleteWeek} onToggleOpen={toggleWeekOpen}
-                        onUpdatePresets={presets => setState(s => ({ ...s, presets }))}
-                      />
-                    ))}
-
-                    <button className="add-week-btn" onClick={() => addWeek(month)}>
-                      + Add week to {month}
-                    </button>
-                  </div>
+                  <MonthSection
+                    key={month}
+                    month={month} weeks={weeks} statuses={statuses} summary={summary}
+                    goal={state.goal} presets={state.presets}
+                    onUpdateDays={updateWeekDays} onDeleteWeek={deleteWeek} onToggleOpen={toggleWeekOpen}
+                    onUpdatePresets={presets => setState(s => ({ ...s, presets }))}
+                    onAddWeek={addWeek}
+                  />
                 );
               })}
 

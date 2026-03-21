@@ -237,6 +237,40 @@ button, input, select, textarea { font-family: inherit; }
   max-width: 440px;
 }
 
+/* Creator attribution */
+.creator-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+  padding: 10px 14px 10px 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+}
+.creator-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center top;
+  flex-shrink: 0;
+}
+.creator-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.creator-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.creator-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 .landing-section-title {
   font-size: 0.65rem;
   font-weight: 700;
@@ -569,6 +603,43 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
   margin-bottom: 4px; min-height: 44px;
 }
 .add-week-btn:hover { border-color: var(--accent); color: var(--text); }
+
+/* Add-week row with week number picker */
+.add-week-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.add-week-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.week-num-input {
+  width: 56px;
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  outline: none;
+  min-height: 40px;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+.week-num-input:focus { border-color: var(--accent); }
+.week-num-input::-webkit-outer-spin-button,
+.week-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* Inside the row the button stretches instead of being full-width */
+.add-week-row .add-week-btn {
+  flex: 1;
+  width: auto;
+  margin-bottom: 0;
+}
 
 .new-month-row {
   display: flex; gap: 8px; align-items: center;
