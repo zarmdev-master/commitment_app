@@ -31,14 +31,40 @@ function uniqueDays(week: Week) {
   return new Set(week.days.map(e => e.day)).size;
 }
 
+/**
+ * Returns all Mon–Sun weeks that "belong" to this month:
+ * a week belongs if it has MORE than 3 days inside the month.
+ * Each entry is the full 7-day range (may spill into adjacent months).
+ */
+function getMonthWeeks(month: string): { start: Date; end: Date }[] {
+  const monthIdx = MONTHS.indexOf(month);
+  const year     = new Date().getFullYear();
+  const mStart   = new Date(year, monthIdx, 1);
+  const mEnd     = new Date(year, monthIdx + 1, 0);
+
+  // Monday on or before the 1st
+  const dow      = mStart.getDay();
+  const daysBack = dow === 0 ? 6 : dow - 1;
+  let mon        = new Date(year, monthIdx, 1 - daysBack);
+
+  const result: { start: Date; end: Date }[] = [];
+  while (mon <= mEnd) {
+    const sun         = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const oStart      = new Date(Math.max(mon.getTime(), mStart.getTime()));
+    const oEnd        = new Date(Math.min(sun.getTime(), mEnd.getTime()));
+    const daysInMonth = Math.round((oEnd.getTime() - oStart.getTime()) / 86400000) + 1;
+    if (daysInMonth > 3) result.push({ start: new Date(mon), end: new Date(sun) });
+    mon = new Date(mon); mon.setDate(mon.getDate() + 7);
+  }
+  return result;
+}
+
 function weekDateRange(weekNum: number, month: string) {
-  const monthIdx  = MONTHS.indexOf(month);
-  const year      = new Date().getFullYear();
-  const startDay  = (weekNum - 1) * 7 + 1;
-  const daysInMon = new Date(year, monthIdx + 1, 0).getDate();
-  const endDay    = Math.min(weekNum * 7, daysInMon);
+  const weeks = getMonthWeeks(month);
+  const w     = weeks[weekNum - 1];
+  if (!w) return '';
   const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  return `${fmt(new Date(year, monthIdx, startDay))} – ${fmt(new Date(year, monthIdx, endDay))}`;
+  return `${fmt(w.start)} – ${fmt(w.end)}`;
 }
 
 function computeWeekStatuses(weeks: Week[], goal: number) {
@@ -96,10 +122,7 @@ function buildMonthSummaryLine(month: string, allMonths: AllMonths, goal: number
 }
 
 function weeksInMonth(month: string): number {
-  const monthIdx   = MONTHS.indexOf(month);
-  const year       = new Date().getFullYear();
-  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
-  return Math.ceil(daysInMonth / 7);
+  return getMonthWeeks(month).length;
 }
 
 function escHtml(s: string) {
