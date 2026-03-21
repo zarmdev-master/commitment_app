@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
+import { loadUserData, saveUserData } from '@/lib/supabase';
 
 function initials(name: string) { return name.slice(0, 2).toUpperCase(); }
 
@@ -549,35 +550,51 @@ export default function TrackerPage() {
     const realMonth = MONTHS[now.getMonth()];
     const key       = `pacepal_tracker_${activeUser}`;
 
-    let loaded = EMPTY_STATE();
+    function applyDefaults(raw: AppState): AppState {
+      if (!raw.allMonths)   raw.allMonths   = {};
+      if (!raw.goal)        raw.goal        = 3;
+      if (!raw.previewMode) raw.previewMode = 'current';
+      const existing = raw.presets ?? [];
+      const existingSet = new Set(existing);
+      raw.presets = [...existing, ...DEFAULT_PRESETS.filter(p => !existingSet.has(p))];
+      if (!raw.allMonths[realMonth]?.length) {
+        raw.allMonths[realMonth] = [{
+          id: Date.now(), number: Math.ceil(now.getDate() / 7), open: true, days: [],
+        }];
+      }
+      return raw;
+    }
+
+    // 1. Show localStorage immediately for instant load
+    let local = EMPTY_STATE();
     const saved = localStorage.getItem(key);
-    if (saved) {
-      try { loaded = JSON.parse(saved); } catch (_) {}
-    } else if (SEED_DATA[activeUser]) {
-      loaded = { ...SEED_DATA[activeUser] };
-    }
-
-    if (!loaded.allMonths)   loaded.allMonths   = {};
-    if (!loaded.goal)        loaded.goal        = 3;
-    if (!loaded.previewMode) loaded.previewMode = 'current';
-
-    // Merge any new DEFAULT_PRESETS additions into existing preset lists
-    const savedPresets = loaded.presets ?? [];
-    const savedSet = new Set(savedPresets);
-    loaded.presets = [...savedPresets, ...DEFAULT_PRESETS.filter(p => !savedSet.has(p))];
-
-    if (!loaded.allMonths[realMonth]?.length) {
-      loaded.allMonths[realMonth] = [{
-        id: Date.now(), number: Math.ceil(now.getDate() / 7), open: true, days: [],
-      }];
-    }
-
-    setState(loaded);
+    if (saved) { try { local = JSON.parse(saved); } catch (_) {} }
+    const hasLocalActivity = Object.values(local.allMonths ?? {}).some(
+      (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
+    );
+    if (!hasLocalActivity && SEED_DATA[activeUser]) local = { ...SEED_DATA[activeUser] };
+    setState(applyDefaults(local));
     setHydrated(true);
+
+    // 2. Fetch from Supabase — cloud is source of truth
+    loadUserData(activeUser).then(cloudRaw => {
+      if (!cloudRaw) return; // no cloud record yet — local is fine
+      const cloud = cloudRaw as AppState;
+      const hasCloudActivity = Object.values(cloud.allMonths ?? {}).some(
+        (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
+      );
+      if (!hasCloudActivity && SEED_DATA[activeUser]) return; // cloud is empty, keep local
+      const merged = applyDefaults(cloud);
+      setState(merged);
+      localStorage.setItem(key, JSON.stringify(merged)); // update local cache
+    });
   }, [activeUser]);
 
   useEffect(() => {
-    if (hydrated) localStorage.setItem(`pacepal_tracker_${activeUser}`, JSON.stringify(state));
+    if (!hydrated) return;
+    const key = `pacepal_tracker_${activeUser}`;
+    localStorage.setItem(key, JSON.stringify(state));
+    saveUserData(activeUser, state); // sync to cloud in background
   }, [state, hydrated, activeUser]);
 
   // ── Derived ────────────────────────────────────────────────────────────────

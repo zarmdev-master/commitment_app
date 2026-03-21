@@ -11,9 +11,8 @@ const ACTIVE_MODULES = [
 ];
 
 const COMING_SOON = [
-  { icon: '🥗', title: 'Nutrition log' },
-  { icon: '😴', title: 'Sleep tracker' },
   { icon: '📊', title: 'Weekly review' },
+  { icon: '📲', title: 'Upload from your app' },
 ];
 
 export default function HomePage() {

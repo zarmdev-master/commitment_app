@@ -1,23 +1,18 @@
 /**
- * Pacepal — one-time data seed
+ * Gingarinha — manual data seed / recovery tool
  * Open http://localhost:3000 in your browser, open DevTools (F12),
  * paste this entire script into the Console tab and press Enter.
  */
-
-const DEFAULT_PRESETS = [
-  'gym 🏋🏻‍♀️','padel Training 🎾','beach volleyball 🏐',
-  'spa wellness 🧖🏻‍♀️','leg work out with Eliza','running 🏃‍♀️','yoga 🧘‍♀️','cycling 🚴‍♀️',
-];
 
 // ── Eliza ─────────────────────────────────────────────────────────────────────
 const elizaData = {
   goal: 3,
   previewMode: 'current',
-  presets: DEFAULT_PRESETS,
+  presets: [],
   allMonths: {
     March: [
       {
-        id: 1, number: 1, open: false,
+        id: 101, number: 1, open: false,
         days: [
           { day: 'MON', activity: '1h beach training 🏖️🏐' },
           { day: 'TUE', activity: '1h leg workout with Zoja' },
@@ -30,7 +25,7 @@ const elizaData = {
         ],
       },
       {
-        id: 2, number: 2, open: false,
+        id: 102, number: 2, open: false,
         days: [
           { day: 'TUE', activity: '1h Workout A 🏋🏻‍♀' },
           { day: 'WED', activity: '1h 30 indoor volley 🏐' },
@@ -39,7 +34,7 @@ const elizaData = {
         ],
       },
       {
-        id: 3, number: 3, open: true,
+        id: 103, number: 3, open: true,
         days: [
           { day: 'MON', activity: '1h 30 beach training 🏖️' },
         ],
@@ -52,11 +47,11 @@ const elizaData = {
 const zojaData = {
   goal: 3,
   previewMode: 'current',
-  presets: DEFAULT_PRESETS,
+  presets: [],
   allMonths: {
     March: [
       {
-        id: 1, number: 1, open: false,
+        id: 201, number: 1, open: false,
         days: [
           { day: 'TUE', activity: '1h leg work out with Eliza' },
           { day: 'WED', activity: '1h padel Training 🎾' },
@@ -65,14 +60,14 @@ const zojaData = {
         ],
       },
       {
-        id: 2, number: 2, open: false,
+        id: 202, number: 2, open: false,
         days: [
           { day: 'SAT', activity: '1h gym 🏋🏻‍♀️' },
           { day: 'SUN', activity: '1h gym 🏋🏻‍♀️' },
         ],
       },
       {
-        id: 3, number: 3, open: true,
+        id: 203, number: 3, open: true,
         days: [
           { day: 'MON', activity: '1h 15 gym 🏋🏻‍♀️' },
           { day: 'TUE', activity: '1h padel Training 🎾' },
@@ -90,8 +85,7 @@ const zojaData = {
 localStorage.setItem('pacepal_tracker_Eliza', JSON.stringify(elizaData));
 localStorage.setItem('pacepal_tracker_Zoja',  JSON.stringify(zojaData));
 
-// Ensure both users exist
-const existing = JSON.parse(localStorage.getItem('pacepal_users') || '["Eliza","Zoja"]');
+const existing = JSON.parse(localStorage.getItem('pacepal_users') || '[]');
 const merged   = Array.from(new Set([...existing, 'Eliza', 'Zoja']));
 localStorage.setItem('pacepal_users', JSON.stringify(merged));
 

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/marin/AppData/Roaming/**)",
+      "Read(//mnt/c/Program Files/**)",
+      "Read(//mnt/**)"
+    ]
+  }
+}
