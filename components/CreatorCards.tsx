@@ -22,8 +22,8 @@ function CreatorPhoto({ src, alt }: { src: string; alt: string }) {
 }
 
 const CREATORS = [
-  { name: 'Zoja',  src: '/zoja.jpg',  sub: 'personal project · built for fun' },
-  { name: 'Eliza', src: '/eliza.jpg', sub: 'the inspiration · dreamer · contributing soon' },
+  { name: 'Zoja',  src: '/zoja.jpg',  sub: 'currious · enabler · multiplier' },
+  { name: 'Eliza', src: '/eliza.jpg', sub: 'inspirator · dreamer · contributing soon' },
 ];
 
 export default function CreatorCards() {
