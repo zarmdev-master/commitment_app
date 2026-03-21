@@ -648,7 +648,7 @@ export default function TrackerPage() {
       {/* Header */}
       <div className="tracker-header">
         <div>
-          <div className="tracker-title">💬 WhatsApp Tracker</div>
+          <div className="tracker-title">💬 Workout Log</div>
           <div className="tracker-user-label">{`${activeUser}'s workouts`}</div>
         </div>
         <div className="pill-ctrl">

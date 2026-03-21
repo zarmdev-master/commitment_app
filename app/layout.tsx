@@ -11,7 +11,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Pacepal',
+  title: 'Gingarinha',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

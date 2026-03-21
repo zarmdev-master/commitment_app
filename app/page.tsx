@@ -5,8 +5,8 @@ const ACTIVE_MODULES = [
   {
     href: '/tracker',
     icon: '💬',
-    title: 'Quick WhatsApp Text Creator',
-    desc: 'Log your weekly workouts and copy a clean, ready-to-paste WhatsApp summary in one click.',
+    title: 'Workout Log',
+    desc: 'Log your sessions and share a clean summary straight to WhatsApp. One tap.',
   },
 ];
 
@@ -21,13 +21,14 @@ export default function HomePage() {
     <div className="landing">
       <div className="landing-hero">
         <div className="landing-logo">
-          <span style={{ color: 'var(--text)' }}>pace</span>
-          <span style={{ color: 'var(--accent)' }}>pal</span>
+          <span style={{ color: 'var(--text)' }}>ginga</span>
+          <span style={{ color: 'var(--accent)' }}>rinha</span>
         </div>
-        <p className="landing-tagline">Your personal fitness experiment space.</p>
+        <p className="landing-tagline">Built for women who move, grow, and never sit still.</p>
         <p className="landing-desc">
-          A little corner for building tools that make tracking fitness easier.
-          No subscriptions, no bloat — just the stuff that&apos;s actually useful.
+          A personal space for women who train, create, and keep growing.
+          Homemade tools for tracking the things that actually matter —
+          no subscriptions, no bloat. Good energy only.
         </p>
 
         <div className="creator-card">

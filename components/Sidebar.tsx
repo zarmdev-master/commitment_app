@@ -7,7 +7,7 @@ import { useUser } from '@/context/UserContext';
 
 const NAV = [
   { href: '/',        label: 'Home',             icon: '🏠', exact: true },
-  { href: '/tracker', label: 'WhatsApp Tracker',  icon: '💬' },
+  { href: '/tracker', label: 'Workout Log',  icon: '💬' },
 ];
 
 function initials(name: string) {
@@ -122,7 +122,7 @@ export default function Sidebar() {
       {/* ── Desktop sidebar ── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <span className="logo-white">pace</span><span className="logo-accent">pal</span>
+          <span className="logo-white">ginga</span><span className="logo-accent">rinha</span>
         </div>
 
         <nav className="sidebar-nav">
