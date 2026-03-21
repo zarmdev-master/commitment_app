@@ -139,6 +139,22 @@ const SEED_DATA: Record<string, AppState> = {
   },
 };
 
+// ── Seed week ID ownership — used to detect cross-user contamination ──────────
+const SEED_WEEK_IDS: Record<string, Set<number>> = {
+  Eliza: new Set([101, 102, 103]),
+  Zoja:  new Set([201, 202, 203]),
+};
+
+function isContaminated(data: AppState, user: string): boolean {
+  const allIds = Object.values(data.allMonths ?? {}).flatMap(
+    weeks => (weeks as Week[]).map(w => w.id)
+  );
+  // Contaminated if it contains week IDs that belong to a DIFFERENT user
+  return Object.entries(SEED_WEEK_IDS).some(
+    ([owner, ids]) => owner !== user && allIds.some(id => ids.has(id))
+  );
+}
+
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
 function uniqueDays(week: Week) {
@@ -572,6 +588,11 @@ export default function TrackerPage() {
     let local = EMPTY_STATE();
     const saved = localStorage.getItem(key);
     if (saved) { try { local = JSON.parse(saved); } catch (_) {} }
+    // If data was contaminated by another user's records, wipe it and reseed
+    if (isContaminated(local, activeUser)) {
+      localStorage.removeItem(key);
+      local = EMPTY_STATE();
+    }
     const hasLocalActivity = Object.values(local.allMonths ?? {}).some(
       (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
     );
@@ -587,6 +608,8 @@ export default function TrackerPage() {
       if (cancelled) return; // user switched away before this resolved
       if (!cloudRaw) return;
       const cloud = cloudRaw as AppState;
+      // Ignore cloud data that was contaminated by another user's records
+      if (isContaminated(cloud, activeUser)) return;
       const hasCloudActivity = Object.values(cloud.allMonths ?? {}).some(
         (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
       );
