@@ -67,22 +67,26 @@ export default function Sidebar() {
   const [adding,    setAdding]    = useState(false);
   const [newName,   setNewName]   = useState('');
 
-  const desktopMenuRef = useRef<HTMLDivElement>(null);
-  const inputRef       = useRef<HTMLInputElement>(null);
+  const desktopMenuRef  = useRef<HTMLDivElement>(null);
+  const mobileSheetRef  = useRef<HTMLDivElement>(null);
+  const inputRef        = useRef<HTMLInputElement>(null);
 
   // Focus input when add row appears
   useEffect(() => { if (adding) inputRef.current?.focus(); }, [adding]);
 
-  // Close desktop menu on outside click
+  // Close desktop menu on outside pointer (mouse + touch) — excludes both
+  // the desktop sidebar area and the mobile bottom sheet
   useEffect(() => {
     if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (desktopMenuRef.current && !desktopMenuRef.current.contains(e.target as Node)) {
+    const handler = (e: PointerEvent) => {
+      const inDesktop = desktopMenuRef.current?.contains(e.target as Node);
+      const inMobile  = mobileSheetRef.current?.contains(e.target as Node);
+      if (!inDesktop && !inMobile) {
         setMenuOpen(false); setAdding(false); setNewName('');
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [menuOpen]);
 
   const closeMenu = () => { setMenuOpen(false); setAdding(false); setNewName(''); };
@@ -153,8 +157,17 @@ export default function Sidebar() {
 
       {/* ── Mobile user menu overlay ── */}
       {menuOpen && (
-        <div className="mobile-user-overlay" onClick={closeMenu}>
-          <div className="mobile-user-sheet" onClick={e => e.stopPropagation()}>
+        <div
+          className="mobile-user-overlay"
+          onClick={closeMenu}
+          onPointerDown={closeMenu}
+        >
+          <div
+            ref={mobileSheetRef}
+            className="mobile-user-sheet"
+            onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+          >
             <div className="mobile-sheet-handle" />
             <UserMenuContent {...menuProps} />
           </div>

@@ -12,8 +12,25 @@ const DAY_SHORT: Record<string, string> = {
 const EMOJIS    = ['🏋🏻‍♀️','🎾','🏐','🏃‍♀️','🚴‍♀️','🏊‍♀️','🧘‍♀️','🧖🏻‍♀️','⚽','🏀','🥊','🧠'];
 const DURATIONS = ['30 min','40 min','45 min','1h','1h 15','1h 30','2h'];
 const DEFAULT_PRESETS = [
-  'gym 🏋🏻‍♀️','padel Training 🎾','beach volleyball 🏐',
-  'spa wellness 🧖🏻‍♀️','leg work out with Eliza','running 🏃‍♀️','yoga 🧘‍♀️','cycling 🚴‍♀️',
+  'gym 🏋🏻‍♀️',
+  'workout A 🏋🏻‍♀',
+  'workout B 🏋🏻‍♀',
+  'workout C 🏋🏻‍♀',
+  'padel Training 🎾',
+  'padel 🎾',
+  'beach training 🏖️🏐',
+  'beach volleyball 🏐',
+  'indoor volley 🏐',
+  'beach 🏐',
+  'friendly beach 🏖️',
+  'leg workout with Zoja',
+  'leg work out with Eliza',
+  'core&Mobility 🧘🏻‍♀️',
+  'spa wellness 🧖🏻‍♀️',
+  'spa wellness with Eliza 🧖🏻‍♀️',
+  'running 🏃‍♀️',
+  'yoga 🧘‍♀️',
+  'cycling 🚴‍♀️',
 ];
 
 type Entry    = { day: string; activity: string };
@@ -200,6 +217,28 @@ function weeksInMonth(month: string): number {
 
 function escHtml(s: string) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function stripDuration(activity: string): string {
+  for (const d of DURATIONS) {
+    if (activity.startsWith(d + ' ')) return activity.slice(d.length + 1);
+  }
+  return activity;
+}
+
+function sortPresetsByFrequency(presets: string[], allMonths: AllMonths): string[] {
+  const freq = new Map<string, number>(presets.map(p => [p, 0]));
+  for (const weeks of Object.values(allMonths)) {
+    for (const week of weeks) {
+      for (const entry of week.days) {
+        const base = stripDuration(entry.activity).toLowerCase();
+        for (const p of presets) {
+          if (base === p.toLowerCase()) { freq.set(p, (freq.get(p) ?? 0) + 1); break; }
+        }
+      }
+    }
+  }
+  return [...presets].sort((a, b) => (freq.get(b) ?? 0) - (freq.get(a) ?? 0));
 }
 
 // Parse duration string to minutes (e.g. "1h 30" → 90, "45 min" → 45)
@@ -469,13 +508,17 @@ export default function TrackerPage() {
     if (saved) {
       try { loaded = JSON.parse(saved); } catch (_) {}
     } else if (SEED_DATA[activeUser]) {
-      loaded = { ...SEED_DATA[activeUser], presets: [...DEFAULT_PRESETS] };
+      loaded = { ...SEED_DATA[activeUser] };
     }
 
-    if (!loaded.allMonths)       loaded.allMonths   = {};
-    if (!loaded.presets?.length) loaded.presets     = [...DEFAULT_PRESETS];
-    if (!loaded.goal)            loaded.goal        = 3;
-    if (!loaded.previewMode)     loaded.previewMode = 'current';
+    if (!loaded.allMonths)   loaded.allMonths   = {};
+    if (!loaded.goal)        loaded.goal        = 3;
+    if (!loaded.previewMode) loaded.previewMode = 'current';
+
+    // Merge any new DEFAULT_PRESETS additions into existing preset lists
+    const savedPresets = loaded.presets ?? [];
+    const savedSet = new Set(savedPresets);
+    loaded.presets = [...savedPresets, ...DEFAULT_PRESETS.filter(p => !savedSet.has(p))];
 
     if (!loaded.allMonths[realMonth]?.length) {
       loaded.allMonths[realMonth] = [{
@@ -512,6 +555,10 @@ export default function TrackerPage() {
     const mw = state.allMonths[month] || [];
     return mw.length ? Math.max(...mw.map(w => w.number)) + 1 : 1;
   };
+
+  // ── Presets sorted by usage frequency ─────────────────────────────────────
+
+  const sortedPresets = sortPresetsByFrequency(state.presets, state.allMonths);
 
   // ── Stats (current month) ──────────────────────────────────────────────────
 
@@ -648,7 +695,7 @@ export default function TrackerPage() {
                   <MonthSection
                     key={month}
                     month={month} weeks={weeks} statuses={statuses} summary={summary}
-                    goal={state.goal} presets={state.presets}
+                    goal={state.goal} presets={sortedPresets}
                     onUpdateDays={updateWeekDays} onDeleteWeek={deleteWeek} onToggleOpen={toggleWeekOpen}
                     onUpdatePresets={presets => setState(s => ({ ...s, presets }))}
                     onAddWeek={addWeek}
