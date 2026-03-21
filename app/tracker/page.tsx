@@ -25,6 +25,79 @@ const EMPTY_STATE = (): AppState => ({
   goal: 3, allMonths: {}, presets: [...DEFAULT_PRESETS], previewMode: 'current',
 });
 
+// ── Seed data (loaded on first use per user) ──────────────────────────────────
+const SEED_DATA: Record<string, AppState> = {
+  Eliza: {
+    goal: 3, previewMode: 'current', presets: [...DEFAULT_PRESETS],
+    allMonths: {
+      March: [
+        {
+          id: 101, number: 1, open: false,
+          days: [
+            { day: 'MON', activity: '1h beach training 🏖️🏐' },
+            { day: 'TUE', activity: '1h leg workout with Zoja' },
+            { day: 'WED', activity: '1h workout A 🏋🏻‍♀' },
+            { day: 'THU', activity: '1h workout C 🏋🏻‍♀' },
+            { day: 'FRI', activity: '1h workout B 🏋🏻‍♀' },
+            { day: 'SAT', activity: '2h friendly beach 🏖️' },
+            { day: 'SAT', activity: '1h core&Mobility 🧘🏻‍♀️' },
+            { day: 'SUN', activity: '2h padel' },
+          ],
+        },
+        {
+          id: 102, number: 2, open: false,
+          days: [
+            { day: 'TUE', activity: '1h Workout A 🏋🏻‍♀' },
+            { day: 'WED', activity: '1h 30 indoor volley 🏐' },
+            { day: 'SAT', activity: '1h workout B 🏋🏻‍♀' },
+            { day: 'SUN', activity: '1h 30 padel 🎾' },
+          ],
+        },
+        {
+          id: 103, number: 3, open: true,
+          days: [
+            { day: 'MON', activity: '1h 30 beach training 🏖️' },
+          ],
+        },
+      ],
+    },
+  },
+  Zoja: {
+    goal: 3, previewMode: 'current', presets: [...DEFAULT_PRESETS],
+    allMonths: {
+      March: [
+        {
+          id: 201, number: 1, open: false,
+          days: [
+            { day: 'TUE', activity: '1h leg work out with Eliza' },
+            { day: 'WED', activity: '1h padel Training 🎾' },
+            { day: 'FRI', activity: '1h gym 🏋🏻‍♀️' },
+            { day: 'SAT', activity: '1h gym 🏋🏻‍♀️' },
+          ],
+        },
+        {
+          id: 202, number: 2, open: false,
+          days: [
+            { day: 'SAT', activity: '1h gym 🏋🏻‍♀️' },
+            { day: 'SUN', activity: '1h gym 🏋🏻‍♀️' },
+          ],
+        },
+        {
+          id: 203, number: 3, open: true,
+          days: [
+            { day: 'MON', activity: '1h 15 gym 🏋🏻‍♀️' },
+            { day: 'TUE', activity: '1h padel Training 🎾' },
+            { day: 'TUE', activity: '1h beach 🏐' },
+            { day: 'TUE', activity: '1h 30 padel 🎾' },
+            { day: 'WED', activity: '1h gym 🏋🏻‍♀️' },
+            { day: 'WED', activity: 'spa wellness with Eliza 🧖🏻‍♀️' },
+          ],
+        },
+      ],
+    },
+  },
+};
+
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
 function uniqueDays(week: Week) {
@@ -393,7 +466,11 @@ export default function TrackerPage() {
 
     let loaded = EMPTY_STATE();
     const saved = localStorage.getItem(key);
-    if (saved) { try { loaded = JSON.parse(saved); } catch (_) {} }
+    if (saved) {
+      try { loaded = JSON.parse(saved); } catch (_) {}
+    } else if (SEED_DATA[activeUser]) {
+      loaded = { ...SEED_DATA[activeUser], presets: [...DEFAULT_PRESETS] };
+    }
 
     if (!loaded.allMonths)       loaded.allMonths   = {};
     if (!loaded.presets?.length) loaded.presets     = [...DEFAULT_PRESETS];
@@ -475,7 +552,8 @@ export default function TrackerPage() {
   const addWeek = (month: string, weekNum: number) =>
     setState(s => {
       const months  = { ...s.allMonths };
-      months[month] = [...months[month], { id: Date.now(), number: weekNum, open: true, days: [] }];
+      const newWeek = { id: Date.now(), number: weekNum, open: true, days: [] };
+      months[month] = [...months[month], newWeek].sort((a, b) => a.number - b.number);
       return { ...s, allMonths: months };
     });
 
