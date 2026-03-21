@@ -19,15 +19,18 @@ export default function HomePage() {
   return (
     <div className="landing">
       <div className="landing-hero">
-        <div className="landing-logo">Pacepal</div>
+        <div className="landing-logo">
+          <span style={{ color: 'var(--text)' }}>pace</span>
+          <span style={{ color: 'var(--accent)' }}>pal</span>
+        </div>
         <p className="landing-tagline">Your personal fitness experiment space.</p>
         <p className="landing-desc">
           A little corner for building tools that make tracking fitness easier.
-          No gym app subscriptions, no bloat — just the stuff that's actually useful.
+          No subscriptions, no bloat — just the stuff that&apos;s actually useful.
         </p>
       </div>
 
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 36 }}>
         <div className="landing-section-title">Active</div>
         <div className="module-cards">
           {ACTIVE_MODULES.map(m => (
@@ -48,8 +51,8 @@ export default function HomePage() {
         <div className="module-cards">
           {COMING_SOON.map(m => (
             <div key={m.title} className="module-card-soon">
-              <span className="module-card-icon" style={{ fontSize: '1.4rem', opacity: 0.5 }}>{m.icon}</span>
-              <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{m.title}</span>
+              <span className="module-card-icon" style={{ fontSize: '1.3rem' }}>{m.icon}</span>
+              <span style={{ fontSize: '0.88rem', fontWeight: 500 }}>{m.title}</span>
               <span className="soon-badge">soon</span>
             </div>
           ))}

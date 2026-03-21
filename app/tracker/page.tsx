@@ -6,6 +6,9 @@ import { useUser } from '@/context/UserContext';
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 const DAYS      = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+const DAY_SHORT: Record<string, string> = {
+  MON:'Mo', TUE:'Tu', WED:'We', THU:'Th', FRI:'Fr', SAT:'Sa', SUN:'Su',
+};
 const EMOJIS    = ['🏋🏻‍♀️','🎾','🏐','🏃‍♀️','🚴‍♀️','🏊‍♀️','🧘‍♀️','🧖🏻‍♀️','⚽','🏀','🥊','🧠'];
 const DURATIONS = ['30 min','40 min','45 min','1h','1h 15','1h 30','2h'];
 const DEFAULT_PRESETS = [
@@ -13,8 +16,8 @@ const DEFAULT_PRESETS = [
   'spa wellness 🧖🏻‍♀️','leg work out with Eliza','running 🏃‍♀️','yoga 🧘‍♀️','cycling 🚴‍♀️',
 ];
 
-type Entry = { day: string; activity: string };
-type Week  = { id: number; number: number; open: boolean; days: Entry[] };
+type Entry    = { day: string; activity: string };
+type Week     = { id: number; number: number; open: boolean; days: Entry[] };
 type AllMonths = Record<string, Week[]>;
 type AppState  = { goal: number; allMonths: AllMonths; presets: string[]; previewMode: 'current' | 'history' };
 
@@ -60,7 +63,8 @@ function computeMonthSummary(weeks: Week[], statuses: string[]) {
   const active = weeks.filter(w => w.days.length > 0);
   if (!active.length) return null;
   const total      = active.length;
-  const passed     = statuses.filter((s, i) => weeks[i].days.length > 0 && (s === 'completed' || s === 'compensated')).length;
+  const passed     = statuses.filter((s, i) =>
+    weeks[i].days.length > 0 && (s === 'completed' || s === 'compensated')).length;
   const allPassed  = passed === total;
   const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
   return { total, passed, allPassed, hasPerfect };
@@ -95,6 +99,20 @@ function escHtml(s: string) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// Parse duration string to minutes (e.g. "1h 30" → 90, "45 min" → 45)
+function durationToMinutes(d: string): number {
+  if (d.includes('min')) return parseInt(d) || 0;
+  const parts = d.split('h');
+  return (parseInt(parts[0]) || 0) * 60 + (parts[1] ? parseInt(parts[1].trim()) || 0 : 0);
+}
+
+function extractEntryMinutes(activity: string): number {
+  for (const d of DURATIONS) {
+    if (activity.startsWith(d + ' ') || activity === d) return durationToMinutes(d);
+  }
+  return 0;
+}
+
 // ── WeekCard ──────────────────────────────────────────────────────────────────
 
 function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDelete, onToggleOpen, onUpdatePresets }: {
@@ -111,21 +129,16 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
   const [durError, setDurError] = useState(false);
   const actRef = useRef<HTMLInputElement>(null);
 
-  const days        = uniqueDays(week);
+  const activeDays  = new Set(week.days.map(e => e.day));
+  const days        = activeDays.size;
   const statusEmoji = (status === 'completed' || status === 'compensated') ? '✅' : status === 'failed' ? '❌' : '○';
   const progCls     = (status === 'completed' || status === 'compensated') ? 'met' : status === 'failed' ? 'unmet' : 'empty';
 
   const doAdd = () => {
     if (!activity.trim()) return;
-    if (!duration) {
-      setDurError(true);
-      setDurErrorKey(k => k + 1);
-      return;
-    }
+    if (!duration) { setDurError(true); setDurErrorKey(k => k + 1); return; }
     onUpdate(month, localWi, [...week.days, { day, activity: `${duration} ${activity.trim()}` }]);
-    setActivity('');
-    setDuration(null);
-    setDurError(false);
+    setActivity(''); setDuration(null); setDurError(false);
   };
 
   return (
@@ -137,19 +150,33 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
         }
         onToggleOpen(month, localWi);
       }}>
-        <div className="week-card-title">
-          <span className="status-badge">{statusEmoji}</span>
-          <div>
-            <div>Week {week.number} <span className="week-dates">{weekDateRange(week.number, month)}</span></div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2 }}>
-              <span className={`week-progress ${progCls}`}>{days}/{goal} days</span>
-              {status === 'compensated' && <span className="comp-note">compensated</span>}
-            </div>
+        {/* Top row: title + meta */}
+        <div className="week-header-top">
+          <div className="week-title-group">
+            <span className="status-badge">{statusEmoji}</span>
+            <span className="week-name">Week {week.number}</span>
+            <span className="week-dates">{weekDateRange(week.number, month)}</span>
+          </div>
+          <div className="week-meta">
+            <button className="icon-btn del" data-action="del" title="Delete week">✕</button>
+            <span className={`chevron ${week.open ? 'open' : ''}`}>▼</span>
           </div>
         </div>
-        <div className="week-meta">
-          <button className="icon-btn del" data-action="del" title="Delete week">✕</button>
-          <span className={`chevron ${week.open ? 'open' : ''}`}>▼</span>
+
+        {/* Bottom row: day chips + progress */}
+        <div className="week-header-bottom">
+          <div className="day-chips">
+            {DAYS.map(d => (
+              <div key={d} className={`day-chip${activeDays.has(d) ? ' active' : ''}`}>
+                <span className="day-chip-dot" />
+                <span className="day-chip-label">{DAY_SHORT[d]}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className={`week-progress ${progCls}`}>{days}/{goal}</span>
+            {status === 'compensated' && <span className="comp-note">comp</span>}
+          </div>
         </div>
       </div>
 
@@ -172,6 +199,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
           )}
 
           <div className="add-form">
+            {/* Day & Activity */}
             <div className="form-section">
               <div className="form-label">Day &amp; activity</div>
               <div className="form-row">
@@ -179,9 +207,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
                   {DAYS.map(d => <option key={d}>{d}</option>)}
                 </select>
                 <input
-                  ref={actRef}
-                  className="inp-act"
-                  type="text"
+                  ref={actRef} className="inp-act" type="text"
                   placeholder="Type or tap a preset below…"
                   value={activity}
                   onChange={e => setActivity(e.target.value)}
@@ -190,6 +216,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
               </div>
             </div>
 
+            {/* Duration */}
             <div key={durErrorKey} className={`form-section${durError ? ' dur-error' : ''}`}>
               <div className="form-label">Duration</div>
               <div className="chip-strip">
@@ -200,6 +227,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
               </div>
             </div>
 
+            {/* Quick activities */}
             <div className="form-section">
               <div className="form-label">Quick activities</div>
               <div className="chip-strip">
@@ -221,6 +249,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
               </div>
             </div>
 
+            {/* Emojis */}
             <div className="form-section">
               <div className="form-label">Add emoji</div>
               <div className="chip-strip">
@@ -250,7 +279,7 @@ export default function TrackerPage() {
   const [copied, setCopied]     = useState(false);
   const [newMonthSel, setNewMonthSel] = useState('');
 
-  // Reload data whenever the active user changes
+  // Reload data when user switches
   useEffect(() => {
     setHydrated(false);
     const now       = new Date();
@@ -259,13 +288,11 @@ export default function TrackerPage() {
 
     let loaded = EMPTY_STATE();
     const saved = localStorage.getItem(key);
-    if (saved) {
-      try { loaded = JSON.parse(saved); } catch (_) {}
-    }
+    if (saved) { try { loaded = JSON.parse(saved); } catch (_) {} }
 
-    if (!loaded.allMonths)       loaded.allMonths  = {};
-    if (!loaded.presets?.length) loaded.presets    = [...DEFAULT_PRESETS];
-    if (!loaded.goal)            loaded.goal       = 3;
+    if (!loaded.allMonths)       loaded.allMonths   = {};
+    if (!loaded.presets?.length) loaded.presets     = [...DEFAULT_PRESETS];
+    if (!loaded.goal)            loaded.goal        = 3;
     if (!loaded.previewMode)     loaded.previewMode = 'current';
 
     if (!loaded.allMonths[realMonth]?.length) {
@@ -278,11 +305,8 @@ export default function TrackerPage() {
     setHydrated(true);
   }, [activeUser]);
 
-  // Save on every state change (only after hydration to avoid overwriting on load)
   useEffect(() => {
-    if (hydrated) {
-      localStorage.setItem(`pacepal_tracker_${activeUser}`, JSON.stringify(state));
-    }
+    if (hydrated) localStorage.setItem(`pacepal_tracker_${activeUser}`, JSON.stringify(state));
   }, [state, hydrated, activeUser]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -306,6 +330,16 @@ export default function TrackerPage() {
     const mw = state.allMonths[month] || [];
     return mw.length ? Math.max(...mw.map(w => w.number)) + 1 : 1;
   };
+
+  // ── Stats (current month) ──────────────────────────────────────────────────
+
+  const statsWeeks   = state.allMonths[currentMonth] || [];
+  const allEntries   = statsWeeks.flatMap(w => w.days);
+  const totalMinutes = allEntries.reduce((sum, e) => sum + extractEntryMinutes(e.activity), 0);
+  const totalHours   = totalMinutes / 60;
+  const sessionCount = allEntries.length;
+  const latestWeek   = [...statsWeeks].reverse().find(w => w.days.length > 0) ?? statsWeeks[statsWeeks.length - 1];
+  const thisWeekDays = latestWeek ? uniqueDays(latestWeek) : 0;
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 
@@ -375,28 +409,49 @@ export default function TrackerPage() {
     });
   };
 
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(rawPreview)}`;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="app">
-      <header>
+    <div>
+      {/* Header */}
+      <div className="tracker-header">
         <div>
-          <h1>💬 WhatsApp Tracker</h1>
+          <div className="tracker-title">💬 WhatsApp Tracker</div>
           <div className="tracker-user-label">{`${activeUser}'s workouts`}</div>
         </div>
         <div className="pill-ctrl">
           <label htmlFor="goalSel">Goal</label>
-          <select
-            id="goalSel"
-            value={state.goal}
-            onChange={e => setState(s => ({ ...s, goal: +e.target.value }))}
-          >
+          <select id="goalSel" value={state.goal}
+            onChange={e => setState(s => ({ ...s, goal: +e.target.value }))}>
             {[2,3,4,5,6,7].map(n => <option key={n} value={n}>{n} days/wk</option>)}
           </select>
         </div>
-      </header>
+      </div>
 
-      <div className="layout">
+      {/* Stats row */}
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="stat-value">
+            {totalHours >= 1 ? totalHours.toFixed(1) : totalMinutes > 0 ? `${totalMinutes}m` : '—'}
+          </div>
+          <div className="stat-label">Hours this month</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{sessionCount || '—'}</div>
+          <div className="stat-label">Sessions</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">
+            {thisWeekDays > 0 ? `${thisWeekDays}/${state.goal}` : '—'}
+          </div>
+          <div className="stat-label">This week</div>
+        </div>
+      </div>
+
+      {/* Main layout */}
+      <div className="tracker-layout">
         {/* Weeks panel */}
         <div>
           <div className="panel">
@@ -417,7 +472,7 @@ export default function TrackerPage() {
                             {summary.allPassed ? '✅' : '❌'} {summary.passed}/{summary.total}
                           </span>
                           {summary.hasPerfect && (
-                            <span style={{ fontSize: '1.1rem' }} title="Perfect week this month!">⭐</span>
+                            <span style={{ fontSize: '1rem' }} title="Perfect week!">⭐</span>
                           )}
                         </>
                       )}
@@ -445,7 +500,7 @@ export default function TrackerPage() {
                   <select value={effectiveNewMonth} onChange={e => setNewMonthSel(e.target.value)}>
                     {unstarted.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
-                  <button className="btn btn-primary" style={{ fontSize: '0.82rem' }} onClick={addMonth}>
+                  <button className="btn btn-primary" style={{ fontSize: '0.82rem', minHeight: 40, padding: '0 14px' }} onClick={addMonth}>
                     + New month
                   </button>
                 </div>
@@ -459,28 +514,44 @@ export default function TrackerPage() {
           <div className="panel">
             <div className="panel-header">
               <span>WhatsApp Preview</span>
-              <div className="preview-header-btns">
+              <div className="panel-header-btns">
                 <button
                   className={`btn btn-ghost${state.previewMode === 'history' ? ' active' : ''}`}
+                  style={{ minHeight: 32, padding: '4px 10px', fontSize: '0.78rem' }}
                   onClick={() => setState(s => ({ ...s, previewMode: s.previewMode === 'current' ? 'history' : 'current' }))}
                 >
                   {state.previewMode === 'current' ? '📚 History' : '📄 Current'}
                 </button>
-                <button className={`btn btn-primary copy-btn${copied ? ' copied' : ''}`} onClick={copyText}>
-                  {copied ? '✅ Copied!' : '📋 Copy'}
-                </button>
               </div>
             </div>
 
-            {!activeMonths.length ? (
-              <div className="preview-empty">Add some activities to see the preview</div>
-            ) : (
-              <div className="preview-text">
-                {rawPreview.split('\n').map((line, i) => (
-                  <span key={i} className="wa-line" dangerouslySetInnerHTML={{
-                    __html: escHtml(line).replace(/\*([^*]+)\*/g, '<strong class="wa-bold">$1</strong>'),
-                  }} />
-                ))}
+            <div style={{ padding: '14px' }}>
+              {!activeMonths.length ? (
+                <div className="preview-empty">Add some activities to see the preview</div>
+              ) : (
+                <div className="preview-box">
+                  {rawPreview.split('\n').map((line, i) => (
+                    <span key={i} className="wa-line" dangerouslySetInnerHTML={{
+                      __html: escHtml(line).replace(/\*([^*]+)\*/g, '<strong class="wa-bold">$1</strong>'),
+                    }} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {activeMonths.length > 0 && (
+              <div className="preview-actions">
+                <button className={`btn btn-copy${copied ? ' copied' : ''}`} onClick={copyText}>
+                  {copied ? '✅ Copied!' : '📋 Copy'}
+                </button>
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-whatsapp"
+                >
+                  📲 Share to WhatsApp
+                </a>
               </div>
             )}
           </div>
