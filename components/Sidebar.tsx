@@ -6,12 +6,30 @@ import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/context/UserContext';
 
 const NAV = [
-  { href: '/',        label: 'Home',             icon: '🏠', exact: true },
+  { href: '/',        label: 'Home',         icon: '🏠', exact: true },
   { href: '/tracker', label: 'Workout Log',  icon: '💬' },
 ];
 
 function initials(name: string) {
   return name.slice(0, 2).toUpperCase();
+}
+
+function UserPhoto({ name, className, style }: {
+  name: string; className?: string; style?: React.CSSProperties;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <span className={className} style={style}>{initials(name)}</span>;
+  }
+  return (
+    <img
+      src={`/${name.toLowerCase()}.jpg`}
+      alt={name}
+      className={className}
+      style={{ objectFit: 'cover', objectPosition: 'center top', ...style }}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 // Shared user menu content (used in both desktop and mobile)
@@ -33,7 +51,7 @@ function UserMenuContent({
           className={`user-menu-item${u === activeUser ? ' active' : ''}`}
           onClick={() => onSelect(u)}
         >
-          <span className="user-avatar-sm">{initials(u)}</span>
+          <UserPhoto name={u} className="user-avatar-sm" style={{ borderRadius: '50%' }} />
           {u}
           {u === activeUser && <span className="user-check">✓</span>}
         </button>
@@ -148,7 +166,7 @@ export default function Sidebar() {
             className="user-switcher-btn"
             onClick={() => { setMenuOpen(o => !o); setAdding(false); setNewName(''); }}
           >
-            <span className="user-avatar">{initials(activeUser)}</span>
+            <UserPhoto name={activeUser} className="user-avatar" style={{ borderRadius: '50%' }} />
             <span className="user-name">{activeUser}</span>
             <span className="user-chevron">{menuOpen ? '▲' : '▼'}</span>
           </button>
@@ -193,9 +211,7 @@ export default function Sidebar() {
           onClick={() => { setMenuOpen(o => !o); setAdding(false); setNewName(''); }}
         >
           <span className="bottom-tab-indicator" />
-          <span className="user-avatar" style={{ width: 28, height: 28, fontSize: '0.58rem' }}>
-            {initials(activeUser)}
-          </span>
+          <UserPhoto name={activeUser} className="user-avatar" style={{ width: 28, height: 28, fontSize: '0.58rem', borderRadius: '50%' }} />
           {activeUser.split(' ')[0]}
         </button>
       </nav>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
+import CreatorCards from '@/components/CreatorCards';
 
 const ACTIVE_MODULES = [
   {
@@ -26,24 +26,11 @@ export default function HomePage() {
         </div>
         <p className="landing-tagline">Built for women who move, grow, and never sit still.</p>
         <p className="landing-desc">
-          A personal space for women who train, create, and keep growing.
-          Homemade tools for tracking the things that actually matter —
-          no subscriptions, no bloat. Good energy only.
+          A personal space for women who push, create, and keep growing.
+          Homemade tools made for the things that matter.
         </p>
 
-        <div className="creator-card">
-          <Image
-            src="/zoja.jpg"
-            alt="Zoja"
-            width={48}
-            height={48}
-            className="creator-photo"
-          />
-          <div className="creator-text">
-            <span className="creator-name">Made by Zoja</span>
-            <span className="creator-sub">personal project · built for fun</span>
-          </div>
-        </div>
+        <CreatorCards />
       </div>
 
       <div style={{ marginBottom: 36 }}>

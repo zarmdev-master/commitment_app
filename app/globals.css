@@ -238,11 +238,16 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 /* Creator attribution */
+.creator-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
 .creator-card {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
   padding: 10px 14px 10px 10px;
   background: var(--card);
   border: 1px solid var(--border);
@@ -255,6 +260,15 @@ button, input, select, textarea { font-family: inherit; }
   object-fit: cover;
   object-position: center top;
   flex-shrink: 0;
+}
+.creator-initials {
+  background: var(--accent);
+  color: #000;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .creator-text {
   display: flex;
@@ -335,6 +349,7 @@ button, input, select, textarea { font-family: inherit; }
   gap: 12px;
   flex-wrap: wrap;
 }
+.tracker-header-user { display: flex; align-items: center; gap: 12px; }
 .tracker-title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 3px; }
 .tracker-user-label { font-size: 0.78rem; color: var(--muted); }
 
@@ -572,6 +587,41 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 .chip:hover  { border-color: var(--accent); color: var(--text); }
 .chip.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
 .emoji-chip  { font-size: 1rem; padding: 4px 7px; }
+
+/* More presets dropdown */
+.more-presets-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.more-presets-btn { letter-spacing: 0.1em; }
+.more-presets-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  background: #1c1c1c;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.more-preset-item {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+.more-preset-item:hover { background: var(--card2); color: var(--text); }
 
 .add-preset-btn {
   background: transparent; border: 1px dashed #2a2a2a;

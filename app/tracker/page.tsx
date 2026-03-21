@@ -3,6 +3,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
 
+function initials(name: string) { return name.slice(0, 2).toUpperCase(); }
+
+function UserPhoto({ name }: { name: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span style={{
+        width: 48, height: 48, borderRadius: '50%', background: '#c8f135',
+        color: '#000', fontWeight: 700, fontSize: '0.8rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>{initials(name)}</span>
+    );
+  }
+  return (
+    <img
+      src={`/${name.toLowerCase()}.jpg`}
+      alt={name}
+      style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center top', flexShrink: 0 }}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 const DAYS      = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
@@ -264,12 +287,24 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
   onToggleOpen: (month: string, wi: number) => void;
   onUpdatePresets: (presets: string[]) => void;
 }) {
-  const [day, setDay]           = useState(DAYS[0]);
-  const [activity, setActivity] = useState('');
-  const [duration, setDuration] = useState<string | null>(null);
+  const [day, setDay]               = useState(DAYS[0]);
+  const [activity, setActivity]     = useState('');
+  const [duration, setDuration]     = useState<string | null>(null);
   const [durErrorKey, setDurErrorKey] = useState(0);
-  const [durError, setDurError] = useState(false);
-  const actRef = useRef<HTMLInputElement>(null);
+  const [durError, setDurError]     = useState(false);
+  const [moreOpen, setMoreOpen]     = useState(false);
+  const actRef    = useRef<HTMLInputElement>(null);
+  const moreRef   = useRef<HTMLDivElement>(null);
+
+  // Close "more presets" dropdown on outside click
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: PointerEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [moreOpen]);
 
   const activeDays  = new Set(week.days.map(e => e.day));
   const days        = activeDays.size;
@@ -373,7 +408,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
             <div className="form-section">
               <div className="form-label">Quick activities</div>
               <div className="chip-strip">
-                {presets.map((p, pi) => (
+                {presets.slice(0, 5).map((p, pi) => (
                   <button key={pi} className="chip" title="Right-click to remove"
                     onClick={() => { setActivity(p); actRef.current?.focus(); }}
                     onContextMenu={e => {
@@ -383,22 +418,33 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
                       }
                     }}>{p}</button>
                 ))}
+                {presets.length > 5 && (
+                  <div className="more-presets-wrap" ref={moreRef}>
+                    <button
+                      className={`chip more-presets-btn${moreOpen ? ' active' : ''}`}
+                      onClick={() => setMoreOpen(o => !o)}
+                    >···</button>
+                    {moreOpen && (
+                      <div className="more-presets-dropdown">
+                        {presets.slice(5).map((p, pi) => (
+                          <button key={pi} className="more-preset-item" title="Right-click to remove"
+                            onClick={() => { setActivity(p); actRef.current?.focus(); setMoreOpen(false); }}
+                            onContextMenu={e => {
+                              e.preventDefault();
+                              if (confirm(`Remove preset "${p}"?`)) {
+                                const next = [...presets]; next.splice(5 + pi, 1); onUpdatePresets(next);
+                              }
+                            }}>{p}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <button className="add-preset-btn" onClick={() => {
                   const val = activity.trim();
                   if (!val) { alert('Type an activity first.'); return; }
                   if (!presets.includes(val)) onUpdatePresets([...presets, val]);
                 }}>+ Save as preset</button>
-              </div>
-            </div>
-
-            {/* Emojis */}
-            <div className="form-section">
-              <div className="form-label">Add emoji</div>
-              <div className="chip-strip">
-                {EMOJIS.map(em => (
-                  <button key={em} className="chip emoji-chip"
-                    onClick={() => setActivity(a => a + em)}>{em}</button>
-                ))}
               </div>
             </div>
 
@@ -647,9 +693,12 @@ export default function TrackerPage() {
     <div>
       {/* Header */}
       <div className="tracker-header">
-        <div>
-          <div className="tracker-title">💬 Workout Log</div>
-          <div className="tracker-user-label">{`${activeUser}'s workouts`}</div>
+        <div className="tracker-header-user">
+          <UserPhoto name={activeUser} />
+          <div>
+            <div className="tracker-title">💬 Workout Log</div>
+            <div className="tracker-user-label">{`${activeUser}'s workouts`}</div>
+          </div>
         </div>
         <div className="pill-ctrl">
           <label htmlFor="goalSel">Goal</label>
