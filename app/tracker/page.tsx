@@ -57,24 +57,26 @@ const DEFAULT_PRESETS = [
   'cycling 🚴‍♀️',
 ];
 
-type Entry    = { day: string; activity: string };
-type Week     = { id: number; number: number; open: boolean; days: Entry[] };
+type Entry     = { day: string; activity: string };
+type Week      = { id: number; number: number; open: boolean; days: Entry[] };
 type AllMonths = Record<string, Week[]>;
-type AppState  = { goal: number; allMonths: AllMonths; presets: string[]; previewMode: 'current' | 'history' };
+type AllYears  = Record<string, AllMonths>;
+type AppState  = { goal: number; allYears: AllYears; presets: string[]; previewMode: 'current' | 'history' };
+type ActivityCategory = 'all' | 'padel' | 'gym' | 'beach-volley' | 'running' | 'other';
+
+const CURRENT_YEAR = String(new Date().getFullYear());
 
 const EMPTY_STATE = (): AppState => ({
-  goal: 3, allMonths: {}, presets: [...DEFAULT_PRESETS], previewMode: 'current',
+  goal: 3, allYears: {}, presets: [...DEFAULT_PRESETS], previewMode: 'current',
 });
 
 // ── Seed data (loaded on first use per user) ──────────────────────────────────
 const SEED_DATA: Record<string, AppState> = {
   Eliza: {
     goal: 3, previewMode: 'current', presets: [...DEFAULT_PRESETS],
-    allMonths: {
+    allYears: { [CURRENT_YEAR]: {
       March: [
-        {
-          id: 101, number: 1, open: false,
-          days: [
+        { id: 101, number: 1, open: false, days: [
             { day: 'MON', activity: '1h beach training 🏖️🏐' },
             { day: 'TUE', activity: '1h leg workout with Zoja' },
             { day: 'WED', activity: '1h workout A 🏋🏻‍♀' },
@@ -83,59 +85,43 @@ const SEED_DATA: Record<string, AppState> = {
             { day: 'SAT', activity: '2h friendly beach 🏖️' },
             { day: 'SAT', activity: '1h core&Mobility 🧘🏻‍♀️' },
             { day: 'SUN', activity: '2h padel' },
-          ],
-        },
-        {
-          id: 102, number: 2, open: false,
-          days: [
+        ]},
+        { id: 102, number: 2, open: false, days: [
             { day: 'TUE', activity: '1h Workout A 🏋🏻‍♀' },
             { day: 'WED', activity: '1h 30 indoor volley 🏐' },
             { day: 'SAT', activity: '1h workout B 🏋🏻‍♀' },
             { day: 'SUN', activity: '1h 30 padel 🎾' },
-          ],
-        },
-        {
-          id: 103, number: 3, open: true,
-          days: [
+        ]},
+        { id: 103, number: 3, open: true, days: [
             { day: 'MON', activity: '1h 30 beach training 🏖️' },
-          ],
-        },
+        ]},
       ],
-    },
+    }},
   },
   Zoja: {
     goal: 3, previewMode: 'current', presets: [...DEFAULT_PRESETS],
-    allMonths: {
+    allYears: { [CURRENT_YEAR]: {
       March: [
-        {
-          id: 201, number: 1, open: false,
-          days: [
+        { id: 201, number: 1, open: false, days: [
             { day: 'TUE', activity: '1h leg work out with Eliza' },
             { day: 'WED', activity: '1h padel Training 🎾' },
             { day: 'FRI', activity: '1h gym 🏋🏻‍♀️' },
             { day: 'SAT', activity: '1h gym 🏋🏻‍♀️' },
-          ],
-        },
-        {
-          id: 202, number: 2, open: false,
-          days: [
+        ]},
+        { id: 202, number: 2, open: false, days: [
             { day: 'SAT', activity: '1h gym 🏋🏻‍♀️' },
             { day: 'SUN', activity: '1h gym 🏋🏻‍♀️' },
-          ],
-        },
-        {
-          id: 203, number: 3, open: true,
-          days: [
+        ]},
+        { id: 203, number: 3, open: true, days: [
             { day: 'MON', activity: '1h 15 gym 🏋🏻‍♀️' },
             { day: 'TUE', activity: '1h padel Training 🎾' },
             { day: 'TUE', activity: '1h beach 🏐' },
             { day: 'TUE', activity: '1h 30 padel 🎾' },
             { day: 'WED', activity: '1h gym 🏋🏻‍♀️' },
             { day: 'WED', activity: 'spa wellness with Eliza 🧖🏻‍♀️' },
-          ],
-        },
+        ]},
       ],
-    },
+    }},
   },
 };
 
@@ -146,13 +132,21 @@ const SEED_WEEK_IDS: Record<string, Set<number>> = {
 };
 
 function isContaminated(data: AppState, user: string): boolean {
-  const allIds = Object.values(data.allMonths ?? {}).flatMap(
-    weeks => (weeks as Week[]).map(w => w.id)
+  const allIds = Object.values(data.allYears ?? {}).flatMap(months =>
+    Object.values(months).flatMap(weeks => (weeks as Week[]).map(w => w.id))
   );
-  // Contaminated if it contains week IDs that belong to a DIFFERENT user
   return Object.entries(SEED_WEEK_IDS).some(
     ([owner, ids]) => owner !== user && allIds.some(id => ids.has(id))
   );
+}
+
+function getActivityCategory(activity: string): ActivityCategory {
+  const base = stripDuration(activity).toLowerCase();
+  if (/padel/.test(base)) return 'padel';
+  if (/gym|workout|work.?out|leg.?work|push|pull|couples.?gym|home.?exerci/.test(base)) return 'gym';
+  if (/beach|volley/.test(base)) return 'beach-volley';
+  if (/running|jogging/.test(base)) return 'running';
+  return 'other';
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -160,11 +154,17 @@ function isContaminated(data: AppState, user: string): boolean {
 function mergeAllMonths(local: AllMonths, cloud: AllMonths): AllMonths {
   const result: AllMonths = { ...cloud };
   for (const month of Object.keys(local)) {
-    const lWeeks = local[month] as Week[];
-    const cWeeks = (cloud[month] ?? []) as Week[];
-    const lDays = lWeeks.reduce((s, w) => s + w.days.length, 0);
-    const cDays = cWeeks.reduce((s, w) => s + w.days.length, 0);
-    if (lDays > cDays) result[month] = lWeeks;
+    const lDays = local[month].reduce((s, w) => s + w.days.length, 0);
+    const cDays = (cloud[month] ?? []).reduce((s, w) => s + w.days.length, 0);
+    if (lDays > cDays) result[month] = local[month];
+  }
+  return result;
+}
+
+function mergeAllYears(local: AllYears, cloud: AllYears): AllYears {
+  const result: AllYears = { ...cloud };
+  for (const year of Object.keys(local)) {
+    result[year] = mergeAllMonths(local[year] || {}, cloud[year] || {});
   }
   return result;
 }
@@ -281,8 +281,9 @@ function stripDuration(activity: string): string {
   return activity;
 }
 
-function sortPresetsByFrequency(presets: string[], allMonths: AllMonths): string[] {
+function sortPresetsByFrequency(presets: string[], allYears: AllYears): string[] {
   const freq = new Map<string, number>(presets.map(p => [p, 0]));
+  const allMonths = Object.values(allYears).reduce((acc, m) => ({ ...acc, ...m }), {} as AllMonths);
   for (const weeks of Object.values(allMonths)) {
     for (const week of weeks) {
       for (const entry of week.days) {
@@ -597,24 +598,26 @@ function MonthSection({ month, weeks, statuses, summary, goal, presets, onUpdate
 
 // ── Month overview card ───────────────────────────────────────────────────────
 
-function MonthOverviewCard({ month, weeks, statuses, goal }: {
-  month: string; weeks: Week[]; statuses: string[]; goal: number;
+const CATEGORY_LABELS: Record<ActivityCategory, string> = {
+  all: 'All', padel: 'Padel', gym: 'Gym', 'beach-volley': 'Beach Volley', running: 'Running', other: 'Other',
+};
+
+function MonthOverviewCard({ month, weeks, statuses, goal, filter }: {
+  month: string; weeks: Week[]; statuses: string[]; goal: number; filter: ActivityCategory;
 }) {
-  const entries   = weeks.flatMap(w => w.days);
-  const mins      = entries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
-  const sessions  = entries.length;
+  const filteredEntries = weeks.flatMap(w => w.days).filter(
+    e => filter === 'all' || getActivityCategory(e.activity) === filter
+  );
+  const mins      = filteredEntries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
+  const sessions  = filteredEntries.length;
   const hours     = mins / 60;
   const avgMins   = sessions > 0 ? Math.round(mins / sessions) : 0;
   const summary   = computeMonthSummary(weeks, statuses);
   const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
-
-  const passedIcon = summary
-    ? summary.allPassed ? '✅' : '❌'
-    : null;
+  const passedIcon = summary ? (summary.allPassed ? '✅' : '❌') : null;
 
   return (
     <div className="month-ov-card">
-      {/* Card header */}
       <div className="month-ov-header">
         <span className="month-ov-name">{month}</span>
         <span className="month-ov-badge">
@@ -632,15 +635,21 @@ function MonthOverviewCard({ month, weeks, statuses, goal }: {
         </div>
         {weeks.map((week, wi) => {
           const s = statuses[wi];
-          const wIcon = s === 'completed' ? '✅' : s === 'compensated' ? '☑️' : s === 'failed' ? '❌' : '○';
+          const isPerfect = uniqueDays(week) === 7;
+          const wIcon = isPerfect ? '⭐' : s === 'completed' ? '✅' : s === 'compensated' ? '☑️' : s === 'failed' ? '❌' : '○';
           return (
-            <div key={week.id} className="month-ov-row">
+            <div key={week.id} className={`month-ov-row${isPerfect ? ' month-ov-row-perfect' : ''}`}>
               {DAYS.map(d => {
-                const count = week.days.filter(e => e.day === d).length;
+                const count = week.days.filter(
+                  e => e.day === d && (filter === 'all' || getActivityCategory(e.activity) === filter)
+                ).length;
+                const filled = filter === 'all'
+                  ? week.days.some(e => e.day === d)
+                  : count > 0;
                 return (
                   <span
                     key={d}
-                    className={`ov-dot${count > 0 ? ' ov-dot-filled' : ''}`}
+                    className={`ov-dot${filled ? (isPerfect ? ' ov-dot-perfect' : ' ov-dot-filled') : ''}`}
                     title={count > 0 ? `${count} session${count > 1 ? 's' : ''}` : undefined}
                   />
                 );
@@ -651,7 +660,6 @@ function MonthOverviewCard({ month, weeks, statuses, goal }: {
         })}
       </div>
 
-      {/* Footer stats */}
       <div className="month-ov-stats">
         <span>{sessions} sessions</span>
         <span className="ov-sep">·</span>
@@ -665,15 +673,22 @@ function MonthOverviewCard({ month, weeks, statuses, goal }: {
 
 // ── Overview tab ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ allMonths, goal, activeMonths }: {
-  allMonths: AllMonths; goal: number; activeMonths: string[];
-}) {
-  const yearSessions = activeMonths.reduce((sum, m) =>
-    sum + (allMonths[m] || []).flatMap(w => w.days).length, 0);
-  const yearMins = activeMonths.reduce((sum, m) =>
-    sum + (allMonths[m] || []).flatMap(w => w.days).reduce((s, e) => s + extractEntryMinutes(e.activity), 0), 0);
-  const yearHours  = yearMins / 60;
-  const avgSession = yearSessions > 0 ? Math.round(yearMins / yearSessions) : 0;
+function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
+  const availableYears = Object.keys(allYears).sort().reverse();
+  const [selectedYear, setSelectedYear] = useState(availableYears[0] || CURRENT_YEAR);
+  const [filter, setFilter] = useState<ActivityCategory>('all');
+
+  const allMonths   = allYears[selectedYear] || {};
+  const activeMonths = MONTHS.filter(m => (allMonths[m] || []).some(w => w.days.length > 0));
+
+  const filterEntries = (entries: Entry[]) =>
+    filter === 'all' ? entries : entries.filter(e => getActivityCategory(e.activity) === filter);
+
+  const yearEntries  = activeMonths.flatMap(m => (allMonths[m] || []).flatMap(w => filterEntries(w.days)));
+  const yearMins     = yearEntries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
+  const yearHours    = yearMins / 60;
+  const yearSessions = yearEntries.length;
+  const avgSession   = yearSessions > 0 ? Math.round(yearMins / yearSessions) : 0;
 
   if (!activeMonths.length) {
     return <div className="overview-empty">No activity yet — start logging your workouts to see the overview.</div>;
@@ -681,6 +696,27 @@ function OverviewTab({ allMonths, goal, activeMonths }: {
 
   return (
     <div className="overview-container">
+      {/* Controls row: year + activity filter */}
+      <div className="overview-controls">
+        {availableYears.length > 1 && (
+          <select className="overview-year-sel" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+            {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        )}
+        {availableYears.length === 1 && (
+          <span className="overview-year-label">{selectedYear}</span>
+        )}
+        <div className="overview-filter-chips">
+          {(Object.keys(CATEGORY_LABELS) as ActivityCategory[]).map(cat => (
+            <button
+              key={cat}
+              className={`chip${filter === cat ? ' active' : ''}`}
+              onClick={() => setFilter(cat)}
+            >{CATEGORY_LABELS[cat]}</button>
+          ))}
+        </div>
+      </div>
+
       {/* Year strip */}
       <div className="overview-year-strip">
         {MONTHS.map(m => {
@@ -692,8 +728,8 @@ function OverviewTab({ allMonths, goal, activeMonths }: {
               <span className="year-strip-dot" />
             </div>
           );
-          const statuses = computeWeekStatuses(weeks, goal);
-          const summary  = computeMonthSummary(weeks, statuses);
+          const statuses  = computeWeekStatuses(weeks, goal);
+          const summary   = computeMonthSummary(weeks, statuses);
           const allPassed = summary?.allPassed ?? false;
           return (
             <div key={m} className={`year-strip-month${allPassed ? ' year-strip-ok' : ' year-strip-miss'}`}>
@@ -712,11 +748,11 @@ function OverviewTab({ allMonths, goal, activeMonths }: {
           <span className="ov-total-lbl">months</span>
         </div>
         <div className="ov-total-item">
-          <span className="ov-total-val">{yearSessions}</span>
+          <span className="ov-total-val">{yearSessions || '—'}</span>
           <span className="ov-total-lbl">sessions</span>
         </div>
         <div className="ov-total-item">
-          <span className="ov-total-val">{yearHours >= 1 ? yearHours.toFixed(1) + 'h' : yearMins + 'min'}</span>
+          <span className="ov-total-val">{yearHours >= 1 ? yearHours.toFixed(1) + 'h' : yearMins > 0 ? yearMins + 'min' : '—'}</span>
           <span className="ov-total-lbl">total time</span>
         </div>
         <div className="ov-total-item">
@@ -729,11 +765,10 @@ function OverviewTab({ allMonths, goal, activeMonths }: {
       <div className="overview-months-grid">
         {activeMonths.map(m => (
           <MonthOverviewCard
-            key={m}
-            month={m}
+            key={m} month={m}
             weeks={allMonths[m] || []}
             statuses={computeWeekStatuses(allMonths[m] || [], goal)}
-            goal={goal}
+            goal={goal} filter={filter}
           />
         ))}
       </div>
@@ -763,15 +798,21 @@ export default function TrackerPage() {
     const key       = `pacepal_tracker_${activeUser}`;
 
     function applyDefaults(raw: AppState): AppState {
-      const r = JSON.parse(JSON.stringify(raw)) as AppState; // deep clone — never mutate source
-      if (!r.allMonths)   r.allMonths   = {};
+      const r = JSON.parse(JSON.stringify(raw)) as AppState & { allMonths?: AllMonths };
+      // Migrate old allMonths format → allYears
+      if (r.allMonths && !r.allYears) {
+        r.allYears = { [CURRENT_YEAR]: r.allMonths };
+        delete r.allMonths;
+      }
+      if (!r.allYears)    r.allYears    = {};
       if (!r.goal)        r.goal        = 3;
       if (!r.previewMode) r.previewMode = 'current';
       const existing = r.presets ?? [];
       const existingSet = new Set(existing);
       r.presets = [...existing, ...DEFAULT_PRESETS.filter(p => !existingSet.has(p))];
-      if (!r.allMonths[realMonth]?.length) {
-        r.allMonths[realMonth] = [{
+      if (!r.allYears[CURRENT_YEAR]) r.allYears[CURRENT_YEAR] = {};
+      if (!r.allYears[CURRENT_YEAR][realMonth]?.length) {
+        r.allYears[CURRENT_YEAR][realMonth] = [{
           id: Date.now(), number: Math.ceil(now.getDate() / 7), open: true, days: [],
         }];
       }
@@ -787,7 +828,7 @@ export default function TrackerPage() {
       localStorage.removeItem(key);
       local = EMPTY_STATE();
     }
-    const hasLocalActivity = Object.values(local.allMonths ?? {}).some(
+    const hasLocalActivity = Object.values(local.allYears ?? {}).flatMap(m => Object.values(m)).some(
       (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
     );
     if (!hasLocalActivity && SEED_DATA[activeUser]) local = SEED_DATA[activeUser];
@@ -804,14 +845,14 @@ export default function TrackerPage() {
       const cloud = cloudRaw as AppState;
       // Ignore cloud data that was contaminated by another user's records
       if (isContaminated(cloud, activeUser)) return;
-      const hasCloudActivity = Object.values(cloud.allMonths ?? {}).some(
+      const hasCloudActivity = Object.values(cloud.allYears ?? {}).flatMap(m => Object.values(m)).some(
         (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
       );
       if (!hasCloudActivity && SEED_DATA[activeUser]) return;
       cloudSyncedRef.current = true;
       setState((prev: AppState) => {
         const base = applyDefaults(cloud);
-        base.allMonths = mergeAllMonths(prev.allMonths, base.allMonths);
+        base.allYears = mergeAllYears(prev.allYears, base.allYears);
         return base;
       });
     }).catch(() => { cloudSyncedRef.current = true; });
@@ -831,10 +872,11 @@ export default function TrackerPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const trackedMonths = MONTHS.filter(m => state.allMonths[m]?.length > 0);
-  const activeMonths  = trackedMonths.filter(m => state.allMonths[m].some(w => w.days.length > 0));
+  const curYearMonths = state.allYears[CURRENT_YEAR] || {};
+  const trackedMonths = MONTHS.filter(m => curYearMonths[m]?.length > 0);
+  const activeMonths  = trackedMonths.filter(m => curYearMonths[m].some(w => w.days.length > 0));
   const currentMonth  = activeMonths.length ? activeMonths[activeMonths.length - 1] : MONTHS[new Date().getMonth()];
-  const unstarted     = MONTHS.filter(m => !state.allMonths[m]?.length);
+  const unstarted     = MONTHS.filter(m => !curYearMonths[m]?.length);
 
   const defaultNewMonth = (() => {
     const last = trackedMonths[trackedMonths.length - 1];
@@ -847,17 +889,17 @@ export default function TrackerPage() {
   const effectiveNewMonth = (newMonthSel && unstarted.includes(newMonthSel)) ? newMonthSel : defaultNewMonth;
 
   const nextWeekNumber = (month: string) => {
-    const mw = state.allMonths[month] || [];
+    const mw = curYearMonths[month] || [];
     return mw.length ? Math.max(...mw.map(w => w.number)) + 1 : 1;
   };
 
   // ── Presets sorted by usage frequency ─────────────────────────────────────
 
-  const sortedPresets = sortPresetsByFrequency(state.presets, state.allMonths);
+  const sortedPresets = sortPresetsByFrequency(state.presets, state.allYears);
 
   // ── Stats (current month) ──────────────────────────────────────────────────
 
-  const statsWeeks   = state.allMonths[currentMonth] || [];
+  const statsWeeks   = curYearMonths[currentMonth] || [];
   const allEntries   = statsWeeks.flatMap(w => w.days);
   const totalMinutes = allEntries.reduce((sum, e) => sum + extractEntryMinutes(e.activity), 0);
   const totalHours   = totalMinutes / 60;
@@ -869,34 +911,34 @@ export default function TrackerPage() {
 
   const updateWeekDays = (month: string, wi: number, days: Entry[]) =>
     setState(s => {
-      const months = { ...s.allMonths };
+      const months = { ...s.allYears[CURRENT_YEAR] };
       const weeks  = [...months[month]]; weeks[wi] = { ...weeks[wi], days };
       months[month] = weeks;
-      return { ...s, allMonths: months };
+      return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
 
   const deleteWeek = (month: string, wi: number) =>
     setState(s => {
-      const months = { ...s.allMonths };
+      const months = { ...s.allYears[CURRENT_YEAR] };
       const weeks  = [...months[month]]; weeks.splice(wi, 1);
       if (!weeks.length) delete months[month]; else months[month] = weeks;
-      return { ...s, allMonths: months };
+      return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
 
   const toggleWeekOpen = (month: string, wi: number) =>
     setState(s => {
-      const months  = { ...s.allMonths };
-      const weeks   = [...months[month]]; weeks[wi] = { ...weeks[wi], open: !weeks[wi].open };
+      const months = { ...s.allYears[CURRENT_YEAR] };
+      const weeks  = [...months[month]]; weeks[wi] = { ...weeks[wi], open: !weeks[wi].open };
       months[month] = weeks;
-      return { ...s, allMonths: months };
+      return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
 
   const addWeek = (month: string, weekNum: number) =>
     setState(s => {
-      const months  = { ...s.allMonths };
+      const months  = { ...s.allYears[CURRENT_YEAR] };
       const newWeek = { id: Date.now(), number: weekNum, open: true, days: [] };
       months[month] = [...months[month], newWeek].sort((a, b) => a.number - b.number);
-      return { ...s, allMonths: months };
+      return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
 
   const addMonth = () => {
@@ -904,10 +946,10 @@ export default function TrackerPage() {
     const now = new Date();
     const wn  = MONTHS.indexOf(m) === now.getMonth() ? Math.ceil(now.getDate() / 7) : 1;
     setState(s => {
-      const months = { ...s.allMonths };
+      const months = { ...s.allYears[CURRENT_YEAR] };
       if (!months[m]) months[m] = [];
       months[m] = [...months[m], { id: Date.now(), number: wn, open: true, days: [] }];
-      return { ...s, allMonths: months };
+      return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
     setNewMonthSel('');
   };
@@ -919,11 +961,11 @@ export default function TrackerPage() {
     if (state.previewMode === 'history') {
       activeMonths.forEach(m => {
         rawPreview += m === currentMonth
-          ? buildMonthText(m, state.allMonths, state.goal)
-          : buildMonthSummaryLine(m, state.allMonths, state.goal);
+          ? buildMonthText(m, curYearMonths, state.goal)
+          : buildMonthSummaryLine(m, curYearMonths, state.goal);
       });
     } else {
-      rawPreview = buildMonthText(currentMonth, state.allMonths, state.goal);
+      rawPreview = buildMonthText(currentMonth, curYearMonths, state.goal);
     }
   }
 
@@ -994,7 +1036,7 @@ export default function TrackerPage() {
 
       {/* Overview tab */}
       {activeTab === 'overview' && (
-        <OverviewTab allMonths={state.allMonths} goal={state.goal} activeMonths={activeMonths} />
+        <OverviewTab allYears={state.allYears} goal={state.goal} />
       )}
 
       {/* Main layout */}
@@ -1005,7 +1047,7 @@ export default function TrackerPage() {
             <div className="panel-header"><span>Weeks</span></div>
             <div className="panel-body">
               {trackedMonths.map(month => {
-                const weeks    = state.allMonths[month];
+                const weeks    = curYearMonths[month];
                 const statuses = computeWeekStatuses(weeks, state.goal);
                 const summary  = computeMonthSummary(weeks, statuses);
                 return (

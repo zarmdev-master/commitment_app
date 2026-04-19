@@ -890,6 +890,32 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
   text-align: center; color: var(--muted); padding: 48px 0; font-size: 0.9rem;
 }
 
+/* Overview controls: year selector + activity filter */
+.overview-controls {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  padding-bottom: 18px;
+}
+.overview-year-sel {
+  background: var(--card); border: 1px solid #383838; border-radius: 8px;
+  color: var(--text); font-size: 0.88rem; font-weight: 600;
+  padding: 6px 12px; cursor: pointer; outline: none;
+}
+.overview-year-sel:focus { border-color: var(--accent); }
+.overview-year-label {
+  font-size: 0.88rem; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 8px; padding: 6px 12px;
+}
+.overview-filter-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+
+/* Perfect-week dot and row highlight */
+.ov-dot-perfect {
+  background: #f59e0b !important;
+  box-shadow: 0 0 4px #f59e0b66;
+}
+.month-ov-row-perfect .month-ov-wk-status { color: #f59e0b; }
+
 /* Year strip */
 .overview-year-strip {
   display: flex; gap: 6px; flex-wrap: wrap;
@@ -986,4 +1012,7 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
   .ov-total-val { font-size: 1.1rem; }
   .overview-months-grid { grid-template-columns: 1fr; }
   .ov-dot { width: 14px; height: 14px; }
+  .overview-controls { gap: 8px; }
+  .overview-filter-chips { gap: 4px; }
+  .overview-filter-chips .chip { font-size: 0.75rem; padding: 5px 8px; min-height: 30px; }
 }
