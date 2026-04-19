@@ -830,12 +830,13 @@ const JS_DAY: Record<number, string> = { 0:'SUN',1:'MON',2:'TUE',3:'WED',4:'THU'
 function findWeekNumForDate(date: Date): { month: string; weekNum: number; year: string } {
   const monthIdx = date.getMonth();
   const month    = MONTHS[monthIdx];
-  const year     = String(date.getFullYear());
-  const mStart   = new Date(year, monthIdx, 1);
-  const mEnd     = new Date(year, monthIdx + 1, 0);
+  const yearNum  = date.getFullYear();
+  const year     = String(yearNum);
+  const mStart   = new Date(yearNum, monthIdx, 1);
+  const mEnd     = new Date(yearNum, monthIdx + 1, 0);
   const dow      = mStart.getDay();
   const daysBack = dow === 0 ? 6 : dow - 1;
-  let mon        = new Date(Number(year), monthIdx, 1 - daysBack);
+  let mon        = new Date(yearNum, monthIdx, 1 - daysBack);
   let weekNum    = 1;
   while (mon <= mEnd) {
     const sun         = new Date(mon); sun.setDate(mon.getDate() + 6);
