@@ -955,7 +955,7 @@ function HevyTab({ activeUser, allYears, onImport }: {
     setLoading(true); setError('');
     try {
       let all: HevyWorkout[] = [];
-      const cutoff = new Date('2026-01-01').getTime();
+      const cutoff = new Date('2025-12-29').getTime();
       let page = 1;
       while (true) {
         const res  = await fetch(`/api/hevy?page=${page}&pageSize=10`, {
