@@ -57,7 +57,7 @@ const DEFAULT_PRESETS = [
   'cycling 🚴‍♀️',
 ];
 
-type Entry     = { day: string; activity: string };
+type Entry     = { day: string; activity: string; fromHevy?: boolean };
 type Week      = { id: number; number: number; open: boolean; days: Entry[] };
 type AllMonths = Record<string, Week[]>;
 type AllYears  = Record<string, AllMonths>;
@@ -418,7 +418,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
             <div>
               {week.days.map((entry, ei) => (
                 <div key={ei} className="day-entry">
-                  <span className="day-badge">{entry.day}</span>
+                  <span className={`day-badge${entry.fromHevy ? ' day-badge-hevy' : ''}`} title={entry.fromHevy ? 'Imported from Hevy' : undefined}>{entry.day}</span>
                   <span className="activity-text">{entry.activity}</span>
                   <button className="icon-btn del" title="Remove" onClick={() => {
                     const next = [...week.days]; next.splice(ei, 1); onUpdate(month, localWi, next);
@@ -866,7 +866,7 @@ function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
     : (titleBase ? `${titleBase} 🏋🏻‍♀️` : 'gym 🏋🏻‍♀️');
   const activity  = `${dur} ${label}`;
   const { month, weekNum, year } = findWeekNumForDate(start);
-  return { year, month, weekNum, entry: { day: dayCode, activity } };
+  return { year, month, weekNum, entry: { day: dayCode, activity, fromHevy: true } };
 }
 
 // ── HevyTab ───────────────────────────────────────────────────────────────────
