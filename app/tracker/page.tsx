@@ -416,12 +416,15 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
             <div className="no-entries">No entries yet — use the form below.</div>
           ) : (
             <div>
-              {week.days.map((entry, ei) => (
-                <div key={ei} className="day-entry">
+              {[...week.days]
+                .map((entry, origIdx) => ({ entry, origIdx }))
+                .sort((a, b) => DAYS.indexOf(a.entry.day) - DAYS.indexOf(b.entry.day))
+                .map(({ entry, origIdx }) => (
+                <div key={origIdx} className="day-entry">
                   <span className={`day-badge${entry.fromHevy ? ' day-badge-hevy' : ''}`} title={entry.fromHevy ? 'Imported from Hevy' : undefined}>{entry.day}</span>
                   <span className="activity-text">{entry.activity}</span>
                   <button className="icon-btn del" title="Remove" onClick={() => {
-                    const next = [...week.days]; next.splice(ei, 1); onUpdate(month, localWi, next);
+                    const next = [...week.days]; next.splice(origIdx, 1); onUpdate(month, localWi, next);
                   }}>✕</button>
                 </div>
               ))}
