@@ -3,7 +3,17 @@
     "allow": [
       "Read(//c/Users/marin/AppData/Roaming/**)",
       "Read(//mnt/c/Program Files/**)",
-      "Read(//mnt/**)"
+      "Read(//mnt/**)",
+      "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?select=username,data,updated_at' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s \"https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?select=username,updated_at\" -H \"apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt\" -H \"Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt\")",
+      "Bash(python -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Zoja&select=data' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
+      "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Zoja&select=data,updated_at' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
+      "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Eliza&select=data' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
+      "Bash(curl -s -X POST https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Content-Type: application/json' -H 'Prefer: resolution=merge-duplicates' -d @-)",
+      "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Eliza&select=data,updated_at' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')"
     ]
   }
 }
