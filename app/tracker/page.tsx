@@ -831,28 +831,55 @@ type ImportItem   = { year: string; month: string; weekNum: number; entry: Entry
 const JS_DAY: Record<number, string> = { 0:'SUN',1:'MON',2:'TUE',3:'WED',4:'THU',5:'FRI',6:'SAT' };
 
 function findWeekNumForDate(date: Date): { month: string; weekNum: number; year: string } {
-  const monthIdx = date.getMonth();
-  const month    = MONTHS[monthIdx];
-  const yearNum  = date.getFullYear();
-  const year     = String(yearNum);
-  const mStart   = new Date(yearNum, monthIdx, 1);
-  const mEnd     = new Date(yearNum, monthIdx + 1, 0);
-  const dow      = mStart.getDay();
-  const daysBack = dow === 0 ? 6 : dow - 1;
-  let mon        = new Date(yearNum, monthIdx, 1 - daysBack);
-  let weekNum    = 1;
-  while (mon <= mEnd) {
-    const sun         = new Date(mon); sun.setDate(mon.getDate() + 6);
-    const oStart      = new Date(Math.max(mon.getTime(), mStart.getTime()));
-    const oEnd        = new Date(Math.min(sun.getTime(), mEnd.getTime()));
+  // Find the Mon–Sun week that contains this date
+  const dow       = date.getDay();
+  const daysToMon = dow === 0 ? -6 : 1 - dow;
+  const mon       = new Date(date); mon.setDate(date.getDate() + daysToMon);
+  const sun       = new Date(mon);  sun.setDate(mon.getDate() + 6);
+
+  // The week belongs to whichever month contains > 3 of its days —
+  // the same rule used by getMonthWeeks(). Check the month of Monday
+  // and the month of Sunday (a week spans at most two calendar months).
+  const seen = new Set<string>();
+  const candidates = [mon, sun].filter(d => {
+    const k = `${d.getFullYear()}-${d.getMonth()}`;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  for (const edge of candidates) {
+    const candYear  = edge.getFullYear();
+    const monthIdx  = edge.getMonth();
+    const mStart    = new Date(candYear, monthIdx, 1);
+    const mEnd      = new Date(candYear, monthIdx + 1, 0);
+    const oStart    = new Date(Math.max(mon.getTime(), mStart.getTime()));
+    const oEnd      = new Date(Math.min(sun.getTime(), mEnd.getTime()));
+    if (oStart > oEnd) continue;
     const daysInMonth = Math.round((oEnd.getTime() - oStart.getTime()) / 86400000) + 1;
-    if (daysInMonth > 3) {
-      if (date >= mon && date <= sun) return { month, weekNum, year };
-      weekNum++;
+    if (daysInMonth <= 3) continue;
+
+    // This month owns the week — find which week number it is
+    const month  = MONTHS[monthIdx];
+    const year   = String(candYear);
+    const firstDow  = mStart.getDay();
+    const firstBack = firstDow === 0 ? 6 : firstDow - 1;
+    let curMon   = new Date(candYear, monthIdx, 1 - firstBack);
+    let weekNum  = 1;
+    while (curMon <= mEnd) {
+      const curSun = new Date(curMon); curSun.setDate(curMon.getDate() + 6);
+      const oS = new Date(Math.max(curMon.getTime(), mStart.getTime()));
+      const oE = new Date(Math.min(curSun.getTime(), mEnd.getTime()));
+      const days = oS <= oE ? Math.round((oE.getTime() - oS.getTime()) / 86400000) + 1 : 0;
+      if (days > 3) {
+        if (date >= curMon && date <= curSun) return { month, weekNum, year };
+        weekNum++;
+      }
+      curMon = new Date(curMon); curMon.setDate(curMon.getDate() + 7);
     }
-    mon = new Date(mon); mon.setDate(mon.getDate() + 7);
   }
-  return { month, weekNum: Math.ceil(date.getDate() / 7), year };
+
+  // Fallback (should not normally be reached)
+  return { month: MONTHS[date.getMonth()], weekNum: Math.ceil(date.getDate() / 7), year: String(date.getFullYear()) };
 }
 
 function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
