@@ -735,7 +735,7 @@ export default function TrackerPage() {
     });
   };
 
-  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(rawPreview)}`;
+  const whatsappHref = `https://wa.me/?text=${[...rawPreview].map(c => (c.codePointAt(0)! > 127 ? c : encodeURIComponent(c))).join('')}`;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 

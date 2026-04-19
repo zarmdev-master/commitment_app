@@ -9,7 +9,7 @@ export default function ModulesPage() {
         Modules
       </h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 32, fontSize: '0.9rem' }}>
-        Future modules will live here. Add a new page under <code style={{ background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85rem' }}>app/</code> and a link in <code style={{ background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85rem' }}>components/Sidebar.tsx</code>.
+        Future modules will live here. Add a new page under nnn<code style={{ background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85rem' }}>app/</code> and a link in <code style={{ background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85rem' }}>components/Sidebar.tsx</code>.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
