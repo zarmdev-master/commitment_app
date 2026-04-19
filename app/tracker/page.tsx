@@ -61,7 +61,7 @@ type Entry     = { day: string; activity: string; fromHevy?: boolean };
 type Week      = { id: number; number: number; open: boolean; days: Entry[] };
 type AllMonths = Record<string, Week[]>;
 type AllYears  = Record<string, AllMonths>;
-type AppState  = { goal: number; allYears: AllYears; presets: string[]; previewMode: 'current' | 'history' };
+type AppState  = { goal: number; allYears: AllYears; presets: string[]; previewMode: 'current' | 'history'; hevyApiKey?: string; hevyImportedIds?: string[] };
 type ActivityCategory = 'all' | 'padel' | 'gym' | 'beach-volley' | 'running' | 'other';
 
 const CURRENT_YEAR = String(new Date().getFullYear());
@@ -901,53 +901,42 @@ function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
 
 // ── HevyTab ───────────────────────────────────────────────────────────────────
 
-function HevyTab({ activeUser, allYears, onImport }: {
+function HevyTab({ activeUser, allYears, apiKey, importedIds: importedIdsProp, onImport, onSaveApiKey, onDisconnect, onMarkImported }: {
   activeUser: string;
   allYears: AllYears;
+  apiKey: string;
+  importedIds: string[];
   onImport: (items: ImportItem[]) => void;
+  onSaveApiKey: (key: string) => void;
+  onDisconnect: () => void;
+  onMarkImported: (ids: string[]) => void;
 }) {
-  const keyStoreKey      = `pacepal_hevy_key_${activeUser}`;
-  const importedStoreKey = `pacepal_hevy_imported_${activeUser}`;
+  const importedIds = new Set(importedIdsProp);
 
-  const [apiKey,       setApiKey]       = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return localStorage.getItem(keyStoreKey) || '';
-  });
-  const [keyInput,     setKeyInput]     = useState('');
-  const [workouts,     setWorkouts]     = useState<HevyWorkout[]>([]);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState('');
-  const [lastSync,     setLastSync]     = useState('');
-  const [importedIds,  setImportedIds]  = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set();
-    try { return new Set(JSON.parse(localStorage.getItem(importedStoreKey) || '[]')); }
-    catch { return new Set(); }
-  });
+  const [keyInput,   setKeyInput]   = useState('');
+  const [workouts,   setWorkouts]   = useState<HevyWorkout[]>([]);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
+  const [lastSync,   setLastSync]   = useState('');
   const [importing,  setImporting]  = useState<Set<string>>(new Set());
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
 
   const saveKey = () => {
     const k = keyInput.trim();
     if (!k) return;
-    localStorage.setItem(keyStoreKey, k);
-    setApiKey(k);
+    onSaveApiKey(k);
     setKeyInput('');
     setError('');
   };
 
   const disconnect = () => {
-    localStorage.removeItem(keyStoreKey);
-    setApiKey('');
+    onDisconnect();
     setWorkouts([]);
     setError('');
   };
 
   const markImported = (ids: string[]) => {
-    setImportedIds(prev => {
-      const next = new Set([...prev, ...ids]);
-      localStorage.setItem(importedStoreKey, JSON.stringify([...next]));
-      return next;
-    });
+    onMarkImported(ids);
   };
 
   const syncWorkouts = async (key: string = apiKey) => {
@@ -979,10 +968,9 @@ function HevyTab({ activeUser, allYears, onImport }: {
       setWorkouts(all);
       setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       // Compute which previously-imported workouts are now missing from the log
-      const currentImported = new Set(JSON.parse(localStorage.getItem(importedStoreKey) || '[]') as string[]);
       const nowMissing = new Set<string>();
       for (const w of all) {
-        if (!currentImported.has(w.id)) continue;
+        if (!importedIds.has(w.id)) continue;
         const { year, month, weekNum, entry } = hevyWorkoutToImport(w);
         const exists = allYears[year]?.[month]
           ?.find(wk => wk.number === weekNum)
@@ -1152,6 +1140,17 @@ export default function TrackerPage() {
       const existing = r.presets ?? [];
       const existingSet = new Set(existing);
       r.presets = [...existing, ...DEFAULT_PRESETS.filter(p => !existingSet.has(p))];
+      // Migrate Hevy API key and imported IDs from localStorage → state (one-time)
+      if (!r.hevyApiKey) {
+        const lsKey = localStorage.getItem(`pacepal_hevy_key_${activeUser}`);
+        if (lsKey) r.hevyApiKey = lsKey;
+      }
+      if (!r.hevyImportedIds?.length) {
+        try {
+          const lsIds = JSON.parse(localStorage.getItem(`pacepal_hevy_imported_${activeUser}`) || '[]') as string[];
+          if (lsIds.length) r.hevyImportedIds = lsIds;
+        } catch (_) {}
+      }
       if (!r.allYears[CURRENT_YEAR]) r.allYears[CURRENT_YEAR] = {};
       if (!r.allYears[CURRENT_YEAR][realMonth]?.length) {
         r.allYears[CURRENT_YEAR][realMonth] = [{
@@ -1407,7 +1406,19 @@ export default function TrackerPage() {
 
       {/* Hevy sync tab */}
       {activeTab === 'hevy' && (
-        <HevyTab activeUser={activeUser} allYears={state.allYears} onImport={importHevyEntries} />
+        <HevyTab
+          activeUser={activeUser}
+          allYears={state.allYears}
+          apiKey={state.hevyApiKey || ''}
+          importedIds={state.hevyImportedIds || []}
+          onImport={importHevyEntries}
+          onSaveApiKey={key => setState((s: AppState) => ({ ...s, hevyApiKey: key }))}
+          onDisconnect={() => setState((s: AppState) => ({ ...s, hevyApiKey: '' }))}
+          onMarkImported={ids => setState((s: AppState) => ({
+            ...s,
+            hevyImportedIds: [...new Set([...(s.hevyImportedIds || []), ...ids])],
+          }))}
+        />
       )}
 
       {/* Main layout */}
