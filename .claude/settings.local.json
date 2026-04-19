@@ -14,7 +14,12 @@
       "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Eliza&select=data' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
       "Bash(curl -s -X POST https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Content-Type: application/json' -H 'Prefer: resolution=merge-duplicates' -d @-)",
       "Bash(curl -s 'https://hnhetbskvmmldlmntijw.supabase.co/rest/v1/user_data?username=eq.Eliza&select=data,updated_at' -H 'apikey: sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt' -H 'Authorization: Bearer sb_publishable_GuixG_hEUu1pJ3jrdgDtXw_dzDELjyt')",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node scripts/add-eliza-jan-feb.mjs)",
+      "Bash(node scripts/add-zoja-jan-feb.mjs)"
     ]
   }
 }
