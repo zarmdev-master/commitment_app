@@ -821,7 +821,7 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
 
 type HevySet      = { index: number; weight_kg: number | null; reps: number | null };
 type HevyExercise = { index: number; title: string; sets: HevySet[] };
-type HevyWorkout  = { id: string; title: string; start_time: string; end_time: string; exercises: HevyExercise[] };
+type HevyWorkout  = { id: string; title: string; description?: string; start_time: string; end_time: string; exercises: HevyExercise[] };
 type HevyResponse = { page: number; page_count: number; workouts: HevyWorkout[] };
 type ImportItem   = { year: string; month: string; weekNum: number; entry: Entry };
 
@@ -858,8 +858,13 @@ function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
   const mins     = Math.round((end.getTime() - start.getTime()) / 60000);
   const dur      = minutesToDuration(Math.max(mins, 1));
   const dayCode  = JS_DAY[start.getDay()] ?? 'MON';
-  const title    = w.title?.trim() || 'gym 🏋🏻‍♀️';
-  const activity = `${dur} ${title}`;
+  const titleBase = w.title?.trim() || '';
+  const combined  = (titleBase + ' ' + (w.description || '')).toLowerCase();
+  const isRunning = /\brun(ning)?\b|\bjogging\b/.test(combined);
+  const label     = isRunning
+    ? (titleBase ? `${titleBase} 🏃‍♀️` : 'running 🏃‍♀️')
+    : (titleBase ? `${titleBase} 🏋🏻‍♀️` : 'gym 🏋🏻‍♀️');
+  const activity  = `${dur} ${label}`;
   const { month, weekNum, year } = findWeekNumForDate(start);
   return { year, month, weekNum, entry: { day: dayCode, activity } };
 }
@@ -1048,10 +1053,11 @@ function HevyTab({ activeUser, onImport }: {
                       </div>
                       <button
                         className={`hevy-import-btn${imported ? ' done' : ''}`}
-                        onClick={() => !imported && importOne(w)}
-                        disabled={imported || beingImported}
+                        onClick={() => importOne(w)}
+                        disabled={beingImported}
+                        title={imported ? 'Click to re-import' : undefined}
                       >
-                        {beingImported ? '…' : imported ? '✓ Done' : 'Import'}
+                        {beingImported ? '…' : imported ? '↻ Re-import' : 'Import'}
                       </button>
                     </div>
                   );
