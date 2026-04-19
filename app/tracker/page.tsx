@@ -583,6 +583,152 @@ function MonthSection({ month, weeks, statuses, summary, goal, presets, onUpdate
   );
 }
 
+// ── Month overview card ───────────────────────────────────────────────────────
+
+function MonthOverviewCard({ month, weeks, statuses, goal }: {
+  month: string; weeks: Week[]; statuses: string[]; goal: number;
+}) {
+  const entries   = weeks.flatMap(w => w.days);
+  const mins      = entries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
+  const sessions  = entries.length;
+  const hours     = mins / 60;
+  const avgMins   = sessions > 0 ? Math.round(mins / sessions) : 0;
+  const summary   = computeMonthSummary(weeks, statuses);
+  const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
+
+  const passedIcon = summary
+    ? summary.allPassed ? '✅' : '❌'
+    : null;
+
+  return (
+    <div className="month-ov-card">
+      {/* Card header */}
+      <div className="month-ov-header">
+        <span className="month-ov-name">{month}</span>
+        <span className="month-ov-badge">
+          {summary ? `${summary.passed}/${summary.total}` : '—'}
+          {passedIcon && <span style={{ marginLeft: 4 }}>{passedIcon}</span>}
+          {hasPerfect && <span style={{ marginLeft: 4 }}>⭐</span>}
+        </span>
+      </div>
+
+      {/* Dot grid */}
+      <div className="month-ov-grid">
+        <div className="month-ov-days-header">
+          {DAYS.map(d => <span key={d} className="month-ov-day-lbl">{DAY_SHORT[d]}</span>)}
+          <span className="month-ov-day-lbl" />
+        </div>
+        {weeks.map((week, wi) => {
+          const s = statuses[wi];
+          const wIcon = s === 'completed' ? '✅' : s === 'compensated' ? '☑️' : s === 'failed' ? '❌' : '○';
+          return (
+            <div key={week.id} className="month-ov-row">
+              {DAYS.map(d => {
+                const count = week.days.filter(e => e.day === d).length;
+                return (
+                  <span
+                    key={d}
+                    className={`ov-dot${count > 0 ? ' ov-dot-filled' : ''}`}
+                    title={count > 0 ? `${count} session${count > 1 ? 's' : ''}` : undefined}
+                  />
+                );
+              })}
+              <span className="month-ov-wk-status">{wIcon}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer stats */}
+      <div className="month-ov-stats">
+        <span>{sessions} sessions</span>
+        <span className="ov-sep">·</span>
+        <span>{hours >= 1 ? hours.toFixed(1) + 'h' : mins > 0 ? mins + 'min' : '—'}</span>
+        <span className="ov-sep">·</span>
+        <span>avg {avgMins > 0 ? avgMins + 'min' : '—'}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Overview tab ──────────────────────────────────────────────────────────────
+
+function OverviewTab({ allMonths, goal, activeMonths }: {
+  allMonths: AllMonths; goal: number; activeMonths: string[];
+}) {
+  const yearSessions = activeMonths.reduce((sum, m) =>
+    sum + (allMonths[m] || []).flatMap(w => w.days).length, 0);
+  const yearMins = activeMonths.reduce((sum, m) =>
+    sum + (allMonths[m] || []).flatMap(w => w.days).reduce((s, e) => s + extractEntryMinutes(e.activity), 0), 0);
+  const yearHours  = yearMins / 60;
+  const avgSession = yearSessions > 0 ? Math.round(yearMins / yearSessions) : 0;
+
+  if (!activeMonths.length) {
+    return <div className="overview-empty">No activity yet — start logging your workouts to see the overview.</div>;
+  }
+
+  return (
+    <div className="overview-container">
+      {/* Year strip */}
+      <div className="overview-year-strip">
+        {MONTHS.map(m => {
+          const weeks = allMonths[m] || [];
+          const hasData = weeks.some(w => w.days.length > 0);
+          if (!hasData) return (
+            <div key={m} className="year-strip-month year-strip-empty">
+              <span className="year-strip-name">{m.slice(0, 3)}</span>
+              <span className="year-strip-dot" />
+            </div>
+          );
+          const statuses = computeWeekStatuses(weeks, goal);
+          const summary  = computeMonthSummary(weeks, statuses);
+          const allPassed = summary?.allPassed ?? false;
+          return (
+            <div key={m} className={`year-strip-month${allPassed ? ' year-strip-ok' : ' year-strip-miss'}`}>
+              <span className="year-strip-name">{m.slice(0, 3)}</span>
+              <span className="year-strip-dot year-strip-dot-filled" />
+              <span className="year-strip-fraction">{summary ? `${summary.passed}/${summary.total}` : ''}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Year totals */}
+      <div className="overview-totals">
+        <div className="ov-total-item">
+          <span className="ov-total-val">{activeMonths.length}</span>
+          <span className="ov-total-lbl">months</span>
+        </div>
+        <div className="ov-total-item">
+          <span className="ov-total-val">{yearSessions}</span>
+          <span className="ov-total-lbl">sessions</span>
+        </div>
+        <div className="ov-total-item">
+          <span className="ov-total-val">{yearHours >= 1 ? yearHours.toFixed(1) + 'h' : yearMins + 'min'}</span>
+          <span className="ov-total-lbl">total time</span>
+        </div>
+        <div className="ov-total-item">
+          <span className="ov-total-val">{avgSession > 0 ? avgSession + 'min' : '—'}</span>
+          <span className="ov-total-lbl">avg session</span>
+        </div>
+      </div>
+
+      {/* Monthly cards */}
+      <div className="overview-months-grid">
+        {activeMonths.map(m => (
+          <MonthOverviewCard
+            key={m}
+            month={m}
+            weeks={allMonths[m] || []}
+            statuses={computeWeekStatuses(allMonths[m] || [], goal)}
+            goal={goal}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function TrackerPage() {
@@ -591,6 +737,7 @@ export default function TrackerPage() {
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied]     = useState(false);
   const [newMonthSel, setNewMonthSel] = useState('');
+  const [activeTab, setActiveTab] = useState<'log' | 'overview'>('log');
   const loadedForUser = useRef('');
 
   // Reload data when user switches
@@ -820,8 +967,19 @@ export default function TrackerPage() {
         </div>
       </div>
 
+      {/* Tab switcher */}
+      <div className="tab-switcher">
+        <button className={`tab-btn${activeTab === 'log' ? ' active' : ''}`} onClick={() => setActiveTab('log')}>Log</button>
+        <button className={`tab-btn${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
+      </div>
+
+      {/* Overview tab */}
+      {activeTab === 'overview' && (
+        <OverviewTab allMonths={state.allMonths} goal={state.goal} activeMonths={activeMonths} />
+      )}
+
       {/* Main layout */}
-      <div className="tracker-layout">
+      {activeTab === 'log' && <div className="tracker-layout">
         {/* Weeks panel */}
         <div>
           <div className="panel">
@@ -899,7 +1057,7 @@ export default function TrackerPage() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

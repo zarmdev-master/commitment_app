@@ -868,3 +868,122 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
     background: #3a3a3a; margin: 8px auto 12px;
   }
 }
+
+/* ── Tab switcher ───────────────────────────────────────────────────────────── */
+.tab-switcher {
+  display: flex; gap: 4px;
+  padding: 0 0 20px;
+}
+.tab-btn {
+  padding: 8px 22px; border-radius: 8px; font-size: 0.88rem; font-weight: 500;
+  border: 1px solid var(--border2); background: transparent; color: var(--muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.tab-btn:hover { border-color: var(--accent); color: var(--text); }
+.tab-btn.active {
+  background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700;
+}
+
+/* ── Overview container ─────────────────────────────────────────────────────── */
+.overview-container { padding-bottom: 40px; }
+.overview-empty {
+  text-align: center; color: var(--muted); padding: 48px 0; font-size: 0.9rem;
+}
+
+/* Year strip */
+.overview-year-strip {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 14px 0 20px;
+}
+.year-strip-month {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 36px;
+}
+.year-strip-name { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+.year-strip-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid var(--border2); background: transparent;
+}
+.year-strip-dot-filled { border: none; }
+.year-strip-ok .year-strip-dot-filled  { background: var(--accent); }
+.year-strip-miss .year-strip-dot-filled { background: var(--muted); }
+.year-strip-empty .year-strip-dot { opacity: 0.3; }
+.year-strip-fraction { font-size: 0.62rem; color: var(--muted); }
+.year-strip-ok .year-strip-fraction  { color: var(--accent); }
+
+/* Year totals bar */
+.overview-totals {
+  display: flex; gap: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+  margin-bottom: 24px;
+}
+.ov-total-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 16px 8px; gap: 4px;
+  border-right: 1px solid var(--border);
+}
+.ov-total-item:last-child { border-right: none; }
+.ov-total-val { font-size: 1.35rem; font-weight: 700; color: var(--text); line-height: 1; }
+.ov-total-lbl { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Monthly cards grid */
+.overview-months-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* Month overview card */
+.month-ov-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.month-ov-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.month-ov-name {
+  font-size: 0.9rem; font-weight: 700; color: var(--text); letter-spacing: 0.02em;
+}
+.month-ov-badge {
+  font-size: 0.75rem; color: var(--muted); display: flex; align-items: center;
+}
+
+/* Dot grid */
+.month-ov-grid { display: flex; flex-direction: column; gap: 5px; }
+.month-ov-days-header,
+.month-ov-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr) 20px;
+  align-items: center;
+  gap: 3px;
+}
+.month-ov-day-lbl {
+  font-size: 0.6rem; color: var(--muted); text-align: center;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ov-dot {
+  width: 16px; height: 16px; border-radius: 50%; margin: 0 auto;
+  border: 1.5px solid var(--border2); background: transparent;
+  display: block; transition: background 0.1s;
+}
+.ov-dot-filled {
+  background: var(--accent); border-color: var(--accent);
+}
+.month-ov-wk-status { font-size: 0.72rem; text-align: center; }
+
+/* Footer stats */
+.month-ov-stats {
+  display: flex; gap: 6px; align-items: center;
+  font-size: 0.75rem; color: var(--muted);
+  padding-top: 4px; border-top: 1px solid var(--border);
+}
+.ov-sep { color: var(--border2); }
+
+@media (max-width: 640px) {
+  .overview-totals { gap: 0; }
+  .ov-total-val { font-size: 1.1rem; }
+  .overview-months-grid { grid-template-columns: 1fr; }
+  .ov-dot { width: 14px; height: 14px; }
+}
