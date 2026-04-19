@@ -157,6 +157,18 @@ function isContaminated(data: AppState, user: string): boolean {
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
+function mergeAllMonths(local: AllMonths, cloud: AllMonths): AllMonths {
+  const result: AllMonths = { ...cloud };
+  for (const month of Object.keys(local)) {
+    const lWeeks = local[month] as Week[];
+    const cWeeks = (cloud[month] ?? []) as Week[];
+    const lDays = lWeeks.reduce((s, w) => s + w.days.length, 0);
+    const cDays = cWeeks.reduce((s, w) => s + w.days.length, 0);
+    if (lDays > cDays) result[month] = lWeeks;
+  }
+  return result;
+}
+
 function uniqueDays(week: Week) {
   return new Set(week.days.map(e => e.day)).size;
 }
@@ -794,9 +806,11 @@ export default function TrackerPage() {
         (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
       );
       if (!hasCloudActivity && SEED_DATA[activeUser]) return;
-      const merged = applyDefaults(cloud);
-      setState(merged);
-      localStorage.setItem(key, JSON.stringify(merged));
+      setState((prev: AppState) => {
+        const base = applyDefaults(cloud);
+        base.allMonths = mergeAllMonths(prev.allMonths, base.allMonths);
+        return base;
+      });
     });
 
     return () => { cancelled = true; };
