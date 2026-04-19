@@ -59,20 +59,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteUser = (name: string) => {
-    setUsers(prev => {
-      if (prev.length <= 1) return prev;
-      const next = prev.filter(u => u !== name);
-      localStorage.setItem('pacepal_users', JSON.stringify(next));
-      localStorage.removeItem(`pacepal_tracker_${name}`);
-      return next;
-    });
-    setActiveUserState(prev => {
-      if (prev !== name) return prev;
-      const remaining = users.filter(u => u !== name);
-      const fallback = remaining[0] ?? DEFAULT_USERS[0];
+    if (users.length <= 1) return;
+    const next = users.filter(u => u !== name);
+    localStorage.setItem('pacepal_users', JSON.stringify(next));
+    localStorage.removeItem(`pacepal_tracker_${name}`);
+    setUsers(next);
+    if (activeUser === name) {
+      const fallback = next[0] ?? DEFAULT_USERS[0];
+      setActiveUserState(fallback);
       localStorage.setItem('pacepal_active_user', fallback);
-      return fallback;
-    });
+    }
   };
 
   // Persist user list changes
