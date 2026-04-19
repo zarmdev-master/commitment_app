@@ -602,11 +602,12 @@ const CATEGORY_LABELS: Record<ActivityCategory, string> = {
   all: 'All', padel: 'Padel', gym: 'Gym', 'beach-volley': 'Beach Volley', running: 'Running', other: 'Other',
 };
 
-function MonthOverviewCard({ month, weeks, statuses, goal, filter }: {
-  month: string; weeks: Week[]; statuses: string[]; goal: number; filter: ActivityCategory;
+function MonthOverviewCard({ month, weeks, statuses, goal, filters }: {
+  month: string; weeks: Week[]; statuses: string[]; goal: number; filters: ActivityCategory[];
 }) {
+  const isAllSelected = filters.includes('all');
   const filteredEntries = weeks.flatMap(w => w.days).filter(
-    e => filter === 'all' || getActivityCategory(e.activity) === filter
+    e => isAllSelected || filters.includes(getActivityCategory(e.activity))
   );
   const mins      = filteredEntries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
   const sessions  = filteredEntries.length;
@@ -641,15 +642,15 @@ function MonthOverviewCard({ month, weeks, statuses, goal, filter }: {
             <div key={week.id} className={`month-ov-row${isPerfect ? ' month-ov-row-perfect' : ''}`}>
               {DAYS.map(d => {
                 const count = week.days.filter(
-                  e => e.day === d && (filter === 'all' || getActivityCategory(e.activity) === filter)
+                  e => e.day === d && (isAllSelected || filters.includes(getActivityCategory(e.activity)))
                 ).length;
-                const filled = filter === 'all'
+                const filled = isAllSelected
                   ? week.days.some(e => e.day === d)
                   : count > 0;
                 return (
                   <span
                     key={d}
-                    className={`ov-dot${filled ? (isPerfect ? ' ov-dot-perfect' : ' ov-dot-filled') : ''}`}
+                    className={filled && isPerfect ? 'ov-dot-star' : `ov-dot${filled ? ' ov-dot-filled' : ''}`}
                     title={count > 0 ? `${count} session${count > 1 ? 's' : ''}` : undefined}
                   />
                 );
@@ -676,13 +677,25 @@ function MonthOverviewCard({ month, weeks, statuses, goal, filter }: {
 function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
   const availableYears = Object.keys(allYears).sort().reverse();
   const [selectedYear, setSelectedYear] = useState(availableYears[0] || CURRENT_YEAR);
-  const [filter, setFilter] = useState<ActivityCategory>('all');
+  const [filters, setFilters] = useState<ActivityCategory[]>(['all']);
 
-  const allMonths   = allYears[selectedYear] || {};
+  const allMonths    = allYears[selectedYear] || {};
   const activeMonths = MONTHS.filter(m => (allMonths[m] || []).some(w => w.days.length > 0));
 
+  const isAllSelected = filters.includes('all');
+
+  const toggleFilter = (cat: ActivityCategory) => {
+    if (cat === 'all') { setFilters(['all']); return; }
+    setFilters((prev: ActivityCategory[]) => {
+      const without = prev.filter((f: ActivityCategory) => f !== 'all' && f !== cat);
+      const adding  = !prev.includes(cat);
+      const next    = adding ? [...without, cat] : without;
+      return next.length === 0 ? ['all'] : next;
+    });
+  };
+
   const filterEntries = (entries: Entry[]) =>
-    filter === 'all' ? entries : entries.filter(e => getActivityCategory(e.activity) === filter);
+    isAllSelected ? entries : entries.filter(e => filters.includes(getActivityCategory(e.activity)));
 
   const yearEntries  = activeMonths.flatMap(m => (allMonths[m] || []).flatMap(w => filterEntries(w.days)));
   const yearMins     = yearEntries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
@@ -698,20 +711,19 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
     <div className="overview-container">
       {/* Controls row: year + activity filter */}
       <div className="overview-controls">
-        {availableYears.length > 1 && (
+        {availableYears.length > 1 ? (
           <select className="overview-year-sel" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-        )}
-        {availableYears.length === 1 && (
+        ) : (
           <span className="overview-year-label">{selectedYear}</span>
         )}
         <div className="overview-filter-chips">
           {(Object.keys(CATEGORY_LABELS) as ActivityCategory[]).map(cat => (
             <button
               key={cat}
-              className={`chip${filter === cat ? ' active' : ''}`}
-              onClick={() => setFilter(cat)}
+              className={`chip${(cat === 'all' ? isAllSelected : filters.includes(cat)) ? ' active' : ''}`}
+              onClick={() => toggleFilter(cat)}
             >{CATEGORY_LABELS[cat]}</button>
           ))}
         </div>
@@ -768,7 +780,7 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
             key={m} month={m}
             weeks={allMonths[m] || []}
             statuses={computeWeekStatuses(allMonths[m] || [], goal)}
-            goal={goal} filter={filter}
+            goal={goal} filters={filters}
           />
         ))}
       </div>
@@ -828,10 +840,15 @@ export default function TrackerPage() {
       localStorage.removeItem(key);
       local = EMPTY_STATE();
     }
-    const hasLocalActivity = Object.values(local.allYears ?? {}).flatMap(m => Object.values(m)).some(
-      (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
-    );
-    if (!hasLocalActivity && SEED_DATA[activeUser]) local = SEED_DATA[activeUser];
+    const anyWeeksHaveData = (data: unknown) => {
+      const d = data as Record<string, unknown>;
+      const fromYears = Object.values((d.allYears ?? {}) as Record<string, Record<string, Week[]>>)
+        .flatMap(m => Object.values(m)).some(w => w.some(e => e.days.length > 0));
+      const fromMonths = Object.values((d.allMonths ?? {}) as Record<string, Week[]>)
+        .some(w => w.some(e => e.days.length > 0));
+      return fromYears || fromMonths;
+    };
+    if (!anyWeeksHaveData(local) && SEED_DATA[activeUser]) local = SEED_DATA[activeUser];
     if (!cancelled) {
       setState(applyDefaults(local));
       loadedForUser.current = activeUser;
@@ -845,9 +862,7 @@ export default function TrackerPage() {
       const cloud = cloudRaw as AppState;
       // Ignore cloud data that was contaminated by another user's records
       if (isContaminated(cloud, activeUser)) return;
-      const hasCloudActivity = Object.values(cloud.allYears ?? {}).flatMap(m => Object.values(m)).some(
-        (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
-      );
+      const hasCloudActivity = anyWeeksHaveData(cloud);
       if (!hasCloudActivity && SEED_DATA[activeUser]) return;
       cloudSyncedRef.current = true;
       setState((prev: AppState) => {
