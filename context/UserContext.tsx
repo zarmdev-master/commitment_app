@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 
-const DEFAULT_USERS = ['Eliza', 'Zoja'];
+const DEFAULT_USERS = ['Eliza', 'Zoja', 'HevyTest'];
 
 type UserContextType = {
   users: string[];
@@ -35,7 +35,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (savedUsers) {
       try {
         const parsed = JSON.parse(savedUsers) as string[];
-        if (parsed.length) setUsers(parsed);
+        // Merge: keep saved list but always include any new DEFAULT_USERS entries
+        const merged = [...parsed, ...DEFAULT_USERS.filter(u => !parsed.includes(u))];
+        if (merged.length) setUsers(merged);
       } catch (_) {}
     }
     if (savedActive) setActiveUserState(savedActive);

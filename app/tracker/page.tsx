@@ -817,6 +817,253 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
   );
 }
 
+// ── Hevy helpers ─────────────────────────────────────────────────────────────
+
+type HevySet      = { index: number; weight_kg: number | null; reps: number | null };
+type HevyExercise = { index: number; title: string; sets: HevySet[] };
+type HevyWorkout  = { id: string; title: string; start_time: string; end_time: string; exercises: HevyExercise[] };
+type HevyResponse = { page: number; page_count: number; workouts: HevyWorkout[] };
+type ImportItem   = { year: string; month: string; weekNum: number; entry: Entry };
+
+const JS_DAY: Record<number, string> = { 0:'SUN',1:'MON',2:'TUE',3:'WED',4:'THU',5:'FRI',6:'SAT' };
+
+function findWeekNumForDate(date: Date): { month: string; weekNum: number; year: string } {
+  const monthIdx = date.getMonth();
+  const month    = MONTHS[monthIdx];
+  const year     = String(date.getFullYear());
+  const mStart   = new Date(year, monthIdx, 1);
+  const mEnd     = new Date(year, monthIdx + 1, 0);
+  const dow      = mStart.getDay();
+  const daysBack = dow === 0 ? 6 : dow - 1;
+  let mon        = new Date(Number(year), monthIdx, 1 - daysBack);
+  let weekNum    = 1;
+  while (mon <= mEnd) {
+    const sun         = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const oStart      = new Date(Math.max(mon.getTime(), mStart.getTime()));
+    const oEnd        = new Date(Math.min(sun.getTime(), mEnd.getTime()));
+    const daysInMonth = Math.round((oEnd.getTime() - oStart.getTime()) / 86400000) + 1;
+    if (daysInMonth > 3) {
+      if (date >= mon && date <= sun) return { month, weekNum, year };
+      weekNum++;
+    }
+    mon = new Date(mon); mon.setDate(mon.getDate() + 7);
+  }
+  return { month, weekNum: Math.ceil(date.getDate() / 7), year };
+}
+
+function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
+  const start    = new Date(w.start_time);
+  const end      = new Date(w.end_time);
+  const mins     = Math.round((end.getTime() - start.getTime()) / 60000);
+  const dur      = minutesToDuration(Math.max(mins, 1));
+  const dayCode  = JS_DAY[start.getDay()] ?? 'MON';
+  const title    = w.title?.trim() || 'gym 🏋🏻‍♀️';
+  const activity = `${dur} ${title}`;
+  const { month, weekNum, year } = findWeekNumForDate(start);
+  return { year, month, weekNum, entry: { day: dayCode, activity } };
+}
+
+// ── HevyTab ───────────────────────────────────────────────────────────────────
+
+function HevyTab({ activeUser, onImport }: {
+  activeUser: string;
+  onImport: (items: ImportItem[]) => void;
+}) {
+  const keyStoreKey      = `pacepal_hevy_key_${activeUser}`;
+  const importedStoreKey = `pacepal_hevy_imported_${activeUser}`;
+
+  const [apiKey,       setApiKey]       = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(keyStoreKey) || '';
+  });
+  const [keyInput,     setKeyInput]     = useState('');
+  const [workouts,     setWorkouts]     = useState<HevyWorkout[]>([]);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState('');
+  const [lastSync,     setLastSync]     = useState('');
+  const [importedIds,  setImportedIds]  = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem(importedStoreKey) || '[]')); }
+    catch { return new Set(); }
+  });
+  const [importing, setImporting] = useState<Set<string>>(new Set());
+
+  const saveKey = () => {
+    const k = keyInput.trim();
+    if (!k) return;
+    localStorage.setItem(keyStoreKey, k);
+    setApiKey(k);
+    setKeyInput('');
+    setError('');
+  };
+
+  const disconnect = () => {
+    localStorage.removeItem(keyStoreKey);
+    setApiKey('');
+    setWorkouts([]);
+    setError('');
+  };
+
+  const markImported = (ids: string[]) => {
+    setImportedIds(prev => {
+      const next = new Set([...prev, ...ids]);
+      localStorage.setItem(importedStoreKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const syncWorkouts = async (key: string = apiKey) => {
+    if (!key) return;
+    setLoading(true); setError('');
+    try {
+      let all: HevyWorkout[] = [];
+      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000; // last 90 days
+      let page = 1;
+      while (true) {
+        const res  = await fetch(`/api/hevy?page=${page}&pageSize=10`, {
+          headers: { 'x-hevy-api-key': key },
+        });
+        if (!res.ok) {
+          const msg = await res.json().catch(() => ({ error: 'Hevy error' }));
+          setError(msg.error || `Error ${res.status}`);
+          break;
+        }
+        const data: HevyResponse = await res.json();
+        const filtered = (data.workouts || []).filter(
+          w => new Date(w.start_time).getTime() >= cutoff
+        );
+        all = [...all, ...filtered];
+        if (page >= data.page_count || filtered.length < (data.workouts || []).length) break;
+        page++;
+      }
+      // Sort newest first
+      all.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+      setWorkouts(all);
+      setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    } catch (e) {
+      setError('Failed to reach Hevy. Check your key and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importOne = (w: HevyWorkout) => {
+    setImporting(prev => new Set([...prev, w.id]));
+    const item = hevyWorkoutToImport(w);
+    onImport([item]);
+    markImported([w.id]);
+    setTimeout(() => setImporting(prev => { const n = new Set(prev); n.delete(w.id); return n; }), 400);
+  };
+
+  const importAllNew = () => {
+    const newOnes = workouts.filter(w => !importedIds.has(w.id));
+    const items   = newOnes.map(hevyWorkoutToImport);
+    onImport(items);
+    markImported(newOnes.map(w => w.id));
+  };
+
+  const newCount = workouts.filter(w => !importedIds.has(w.id)).length;
+
+  return (
+    <div className="hevy-tab">
+      <div className="hevy-header">
+        <span className="hevy-logo">🏋🏻</span>
+        <div>
+          <div className="hevy-title">Hevy Integration</div>
+          <div className="hevy-subtitle">Sync completed workouts from your Hevy account</div>
+        </div>
+      </div>
+
+      {!apiKey ? (
+        <div className="hevy-connect-box">
+          <p className="hevy-connect-info">
+            Enter your Hevy API key to sync workouts. Get it at{' '}
+            <strong>hevy.com/settings → Developer</strong> (requires Hevy Pro).
+          </p>
+          <div className="hevy-key-row">
+            <input
+              className="hevy-key-input"
+              type="password"
+              placeholder="Paste API key…"
+              value={keyInput}
+              onChange={e => setKeyInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveKey()}
+            />
+            <button className="btn btn-primary" onClick={saveKey} disabled={!keyInput.trim()}>
+              Connect
+            </button>
+          </div>
+          {error && <div className="hevy-error">{error}</div>}
+        </div>
+      ) : (
+        <>
+          <div className="hevy-status-row">
+            <span className="hevy-connected-badge">● Connected</span>
+            {lastSync && <span className="hevy-last-sync">Last sync: {lastSync}</span>}
+            <div style={{ flex: 1 }} />
+            <button className="btn btn-ghost" style={{ fontSize: '0.78rem' }} onClick={() => syncWorkouts()} disabled={loading}>
+              {loading ? '⏳ Syncing…' : '↻ Sync'}
+            </button>
+            <button className="btn btn-ghost" style={{ fontSize: '0.78rem', color: 'var(--muted)' }} onClick={disconnect}>
+              Disconnect
+            </button>
+          </div>
+
+          {error && <div className="hevy-error">{error}</div>}
+
+          {workouts.length === 0 && !loading && (
+            <div className="hevy-empty">
+              {lastSync ? 'No workouts found in the last 90 days.' : 'Press Sync to load your recent workouts.'}
+            </div>
+          )}
+
+          {workouts.length > 0 && (
+            <>
+              <div className="hevy-list-header">
+                <span>{workouts.length} workouts · last 90 days</span>
+                {newCount > 0 && (
+                  <button className="btn btn-primary" style={{ fontSize: '0.8rem', minHeight: 34 }} onClick={importAllNew}>
+                    Import all new ({newCount})
+                  </button>
+                )}
+              </div>
+              <div className="hevy-list">
+                {workouts.map(w => {
+                  const start     = new Date(w.start_time);
+                  const end       = new Date(w.end_time);
+                  const mins      = Math.round((end.getTime() - start.getTime()) / 60000);
+                  const dur       = minutesToDuration(Math.max(mins, 1));
+                  const dateStr   = start.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+                  const imported  = importedIds.has(w.id);
+                  const beingImported = importing.has(w.id);
+                  const item      = hevyWorkoutToImport(w);
+                  return (
+                    <div key={w.id} className={`hevy-workout-row${imported ? ' hevy-imported' : ''}`}>
+                      <div className="hevy-workout-info">
+                        <span className="hevy-workout-date">{dateStr}</span>
+                        <span className="hevy-workout-title">{w.title || 'Workout'}</span>
+                        <span className="hevy-workout-dur">{dur}</span>
+                        <span className="hevy-workout-dest">{item.month} · Week {item.weekNum} · {item.entry.day}</span>
+                      </div>
+                      <button
+                        className={`hevy-import-btn${imported ? ' done' : ''}`}
+                        onClick={() => !imported && importOne(w)}
+                        disabled={imported || beingImported}
+                      >
+                        {beingImported ? '…' : imported ? '✓ Done' : 'Import'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function TrackerPage() {
@@ -825,7 +1072,7 @@ export default function TrackerPage() {
   const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied]     = useState(false);
   const [newMonthSel, setNewMonthSel] = useState('');
-  const [activeTab, setActiveTab] = useState<'log' | 'overview'>('log');
+  const [activeTab, setActiveTab] = useState<'log' | 'overview' | 'hevy'>('log');
   const loadedForUser = useRef('');
   const cloudSyncedRef = useRef(false);
 
@@ -985,6 +1232,26 @@ export default function TrackerPage() {
       return { ...s, allYears: { ...s.allYears, [CURRENT_YEAR]: months } };
     });
 
+  const importHevyEntries = (items: ImportItem[]) => {
+    setState(s => {
+      const allYears: AllYears = JSON.parse(JSON.stringify(s.allYears));
+      for (const { year, month, weekNum, entry } of items) {
+        if (!allYears[year])        allYears[year] = {};
+        if (!allYears[year][month]) allYears[year][month] = [];
+        let week = allYears[year][month].find(w => w.number === weekNum);
+        if (!week) {
+          week = { id: Date.now() + Math.random(), number: weekNum, open: false, days: [] };
+          allYears[year][month].push(week);
+          allYears[year][month].sort((a, b) => a.number - b.number);
+        }
+        // Prevent duplicate entries (same day + activity)
+        const exists = week.days.some(e => e.day === entry.day && e.activity === entry.activity);
+        if (!exists) week.days.push(entry);
+      }
+      return { ...s, allYears };
+    });
+  };
+
   const addMonth = () => {
     const m   = effectiveNewMonth;
     const now = new Date();
@@ -1076,11 +1343,17 @@ export default function TrackerPage() {
       <div className="tab-switcher">
         <button className={`tab-btn${activeTab === 'log' ? ' active' : ''}`} onClick={() => setActiveTab('log')}>Log</button>
         <button className={`tab-btn${activeTab === 'overview' ? ' active' : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
+        <button className={`tab-btn${activeTab === 'hevy' ? ' active' : ''}`} onClick={() => setActiveTab('hevy')}>🏋🏻 Hevy</button>
       </div>
 
       {/* Overview tab */}
       {activeTab === 'overview' && (
         <OverviewTab allYears={state.allYears} goal={state.goal} />
+      )}
+
+      {/* Hevy sync tab */}
+      {activeTab === 'hevy' && (
+        <HevyTab activeUser={activeUser} onImport={importHevyEntries} />
       )}
 
       {/* Main layout */}
