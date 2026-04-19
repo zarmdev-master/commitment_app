@@ -735,7 +735,15 @@ export default function TrackerPage() {
     });
   };
 
-  const whatsappHref = `https://wa.me/?text=${[...rawPreview].map(c => (c.codePointAt(0)! > 127 ? c : encodeURIComponent(c))).join('')}`;
+  const shareToWhatsApp = () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({ text: rawPreview }).catch(() => {
+        window.open(`https://wa.me/?text=${encodeURIComponent(rawPreview)}`, '_blank');
+      });
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(rawPreview)}`, '_blank');
+    }
+  };
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -851,14 +859,9 @@ export default function TrackerPage() {
                 <button className={`btn btn-copy${copied ? ' copied' : ''}`} onClick={copyText}>
                   {copied ? '✅ Copied!' : '📋 Copy'}
                 </button>
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-whatsapp"
-                >
+                <button className="btn btn-whatsapp" onClick={shareToWhatsApp}>
                   📲 Share to WhatsApp
-                </a>
+                </button>
               </div>
             )}
           </div>
