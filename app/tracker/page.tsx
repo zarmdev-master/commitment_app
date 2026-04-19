@@ -153,7 +153,7 @@ function getActivityCategory(activity: string): ActivityCategory {
   if (/padel|americano/.test(base)) return 'padel';
   if (/gym|workout|work.?out|leg.?work|legs\b|push|pull|couples.?gym|home.?exerci|lady.?boss|core\b|mobility/.test(base)) return 'gym';
   if (/beach|volley/.test(base)) return 'beach-volley';
-  if (/running|jogging/.test(base)) return 'running';
+  if (/\brun(ning)?\b|\bjogging\b/.test(base)) return 'running';
   return 'other';
 }
 
@@ -714,6 +714,9 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
   const yearHours    = yearMins / 60;
   const yearSessions = yearEntries.length;
   const avgSession   = yearSessions > 0 ? Math.round(yearMins / yearSessions) : 0;
+  const totalActiveWeeks = activeMonths.reduce((sum, m) =>
+    sum + (allMonths[m] || []).filter(w => filterEntries(w.days).length > 0).length, 0);
+  const avgPerWeek = totalActiveWeeks > 0 ? (yearSessions / totalActiveWeeks).toFixed(1) : null;
 
   if (!activeMonths.length) {
     return <div className="overview-empty">No activity yet — start logging your workouts to see the overview.</div>;
@@ -802,6 +805,10 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
         <div className="ov-total-item">
           <span className="ov-total-val">{avgSession > 0 ? avgSession + 'min' : '—'}</span>
           <span className="ov-total-lbl">avg session</span>
+        </div>
+        <div className="ov-total-item">
+          <span className="ov-total-val">{avgPerWeek ?? '—'}</span>
+          <span className="ov-total-lbl">avg/week</span>
         </div>
       </div>
 
