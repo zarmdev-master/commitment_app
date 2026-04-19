@@ -145,7 +145,7 @@ const CATEGORY_KEYWORDS: Record<Exclude<ActivityCategory, 'all' | 'other'>, stri
   'gym':          ['gym', 'workout', 'work out', 'leg work', 'legs', 'push', 'pull',
                    'couples gym', 'home exercising', 'lady boss', 'ladyboss', 'core', 'mobility'],
   'beach-volley': ['beach', 'volley'],
-  'running':      ['running', 'jogging'],
+  'running':      ['running', 'jogging', 'run'],
 };
 
 function getActivityCategory(activity: string): ActivityCategory {
@@ -882,6 +882,14 @@ function findWeekNumForDate(date: Date): { month: string; weekNum: number; year:
   return { month: MONTHS[date.getMonth()], weekNum: Math.ceil(date.getDate() / 7), year: String(date.getFullYear()) };
 }
 
+function isWorkoutInLog(w: HevyWorkout, allYears: AllYears): boolean {
+  const { year, month, weekNum, entry } = hevyWorkoutToImport(w);
+  return allYears[year]?.[month]
+    ?.find(wk => wk.number === weekNum)
+    ?.days.some(e => e.day === entry.day && e.activity === entry.activity)
+    ?? false;
+}
+
 function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
   const start    = new Date(w.start_time);
   const end      = new Date(w.end_time);
@@ -995,14 +1003,16 @@ function HevyTab({ activeUser, allYears, apiKey, importedIds: importedIdsProp, o
     setTimeout(() => setImporting(prev => { const n = new Set(prev); n.delete(w.id); return n; }), 400);
   };
 
+  const isImported = (w: HevyWorkout) => importedIds.has(w.id) || isWorkoutInLog(w, allYears);
+
   const importAllNew = () => {
-    const newOnes = workouts.filter(w => !importedIds.has(w.id));
+    const newOnes = workouts.filter(w => !isImported(w));
     const items   = newOnes.map(hevyWorkoutToImport);
     onImport(items);
     markImported(newOnes.map(w => w.id));
   };
 
-  const newCount = workouts.filter(w => !importedIds.has(w.id)).length;
+  const newCount = workouts.filter(w => !isImported(w)).length;
 
   return (
     <div className="hevy-tab">
@@ -1074,7 +1084,7 @@ function HevyTab({ activeUser, allYears, apiKey, importedIds: importedIdsProp, o
                   const mins      = Math.round((end.getTime() - start.getTime()) / 60000);
                   const dur       = minutesToDuration(Math.max(mins, 1));
                   const dateStr   = start.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
-                  const imported  = importedIds.has(w.id);
+                  const imported  = isImported(w);
                   const beingImported = importing.has(w.id);
                   const item      = hevyWorkoutToImport(w);
                   const missing = missingIds.has(w.id);
