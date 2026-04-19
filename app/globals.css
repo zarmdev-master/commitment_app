@@ -1120,6 +1120,12 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 }
 .hevy-import-btn:hover:not(:disabled) { background: var(--accent); color: #000; }
 .hevy-import-btn.done { border-color: var(--muted); color: var(--muted); cursor: default; }
+.hevy-import-btn.missing { border-color: #f59e0b; color: #f59e0b; animation: hevy-pulse 1.6s ease-in-out infinite; }
+.hevy-import-btn.missing:hover { background: #f59e0b; color: #000; }
+@keyframes hevy-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(245,158,11,0.25); }
+}
 
 @media (max-width: 640px) {
   .hevy-tab { padding: 16px 0; }

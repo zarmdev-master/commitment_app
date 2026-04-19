@@ -871,8 +871,9 @@ function hevyWorkoutToImport(w: HevyWorkout): ImportItem {
 
 // ── HevyTab ───────────────────────────────────────────────────────────────────
 
-function HevyTab({ activeUser, onImport }: {
+function HevyTab({ activeUser, allYears, onImport }: {
   activeUser: string;
+  allYears: AllYears;
   onImport: (items: ImportItem[]) => void;
 }) {
   const keyStoreKey      = `pacepal_hevy_key_${activeUser}`;
@@ -1043,8 +1044,16 @@ function HevyTab({ activeUser, onImport }: {
                   const imported  = importedIds.has(w.id);
                   const beingImported = importing.has(w.id);
                   const item      = hevyWorkoutToImport(w);
+                  const entryExists = imported && (() => {
+                    const { year, month, weekNum, entry } = item;
+                    return allYears[year]?.[month]
+                      ?.find(wk => wk.number === weekNum)
+                      ?.days.some(e => e.day === entry.day && e.activity === entry.activity)
+                      ?? false;
+                  })();
+                  const missing = imported && !entryExists;
                   return (
-                    <div key={w.id} className={`hevy-workout-row${imported ? ' hevy-imported' : ''}`}>
+                    <div key={w.id} className={`hevy-workout-row${imported && !missing ? ' hevy-imported' : ''}`}>
                       <div className="hevy-workout-info">
                         <span className="hevy-workout-date">{dateStr}</span>
                         <span className="hevy-workout-title">{w.title || 'Workout'}</span>
@@ -1052,12 +1061,12 @@ function HevyTab({ activeUser, onImport }: {
                         <span className="hevy-workout-dest">{item.month} · Week {item.weekNum} · {item.entry.day}</span>
                       </div>
                       <button
-                        className={`hevy-import-btn${imported ? ' done' : ''}`}
+                        className={`hevy-import-btn${missing ? ' missing' : imported ? ' done' : ''}`}
                         onClick={() => importOne(w)}
                         disabled={beingImported}
-                        title={imported ? 'Click to re-import' : undefined}
+                        title={missing ? 'Entry was deleted — click to re-import' : imported ? 'Click to re-import' : undefined}
                       >
-                        {beingImported ? '…' : imported ? '↻ Re-import' : 'Import'}
+                        {beingImported ? '…' : missing ? '↻ Re-import' : imported ? '✓ Done' : 'Import'}
                       </button>
                     </div>
                   );
@@ -1360,7 +1369,7 @@ export default function TrackerPage() {
 
       {/* Hevy sync tab */}
       {activeTab === 'hevy' && (
-        <HevyTab activeUser={activeUser} onImport={importHevyEntries} />
+        <HevyTab activeUser={activeUser} allYears={state.allYears} onImport={importHevyEntries} />
       )}
 
       {/* Main layout */}
