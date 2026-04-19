@@ -893,7 +893,8 @@ function HevyTab({ activeUser, allYears, onImport }: {
     try { return new Set(JSON.parse(localStorage.getItem(importedStoreKey) || '[]')); }
     catch { return new Set(); }
   });
-  const [importing, setImporting] = useState<Set<string>>(new Set());
+  const [importing,  setImporting]  = useState<Set<string>>(new Set());
+  const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
 
   const saveKey = () => {
     const k = keyInput.trim();
@@ -947,6 +948,19 @@ function HevyTab({ activeUser, allYears, onImport }: {
       all.sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
       setWorkouts(all);
       setLastSync(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      // Compute which previously-imported workouts are now missing from the log
+      const currentImported = new Set(JSON.parse(localStorage.getItem(importedStoreKey) || '[]') as string[]);
+      const nowMissing = new Set<string>();
+      for (const w of all) {
+        if (!currentImported.has(w.id)) continue;
+        const { year, month, weekNum, entry } = hevyWorkoutToImport(w);
+        const exists = allYears[year]?.[month]
+          ?.find(wk => wk.number === weekNum)
+          ?.days.some(e => e.day === entry.day && e.activity === entry.activity)
+          ?? false;
+        if (!exists) nowMissing.add(w.id);
+      }
+      setMissingIds(nowMissing);
     } catch (e) {
       setError('Failed to reach Hevy. Check your key and try again.');
     } finally {
@@ -959,6 +973,7 @@ function HevyTab({ activeUser, allYears, onImport }: {
     const item = hevyWorkoutToImport(w);
     onImport([item]);
     markImported([w.id]);
+    setMissingIds((prev: Set<string>) => { const n = new Set(prev); n.delete(w.id); return n; });
     setTimeout(() => setImporting(prev => { const n = new Set(prev); n.delete(w.id); return n; }), 400);
   };
 
@@ -1044,14 +1059,7 @@ function HevyTab({ activeUser, allYears, onImport }: {
                   const imported  = importedIds.has(w.id);
                   const beingImported = importing.has(w.id);
                   const item      = hevyWorkoutToImport(w);
-                  const entryExists = imported && (() => {
-                    const { year, month, weekNum, entry } = item;
-                    return allYears[year]?.[month]
-                      ?.find(wk => wk.number === weekNum)
-                      ?.days.some(e => e.day === entry.day && e.activity === entry.activity)
-                      ?? false;
-                  })();
-                  const missing = imported && !entryExists;
+                  const missing = missingIds.has(w.id);
                   return (
                     <div key={w.id} className={`hevy-workout-row${imported && !missing ? ' hevy-imported' : ''}`}>
                       <div className="hevy-workout-info">
