@@ -587,6 +587,10 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 .chip:hover  { border-color: var(--accent); color: var(--text); }
 .chip.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
 .emoji-chip  { font-size: 1rem; padding: 4px 7px; }
+.chip-custom-input { width: 72px; background: transparent; outline: none; color: var(--muted); }
+.chip-custom-input::placeholder { color: var(--muted); opacity: 0.6; }
+.chip-custom-input:focus { border-color: var(--accent); color: var(--text); }
+.chip-custom-input.active { background: var(--accent); color: #000; font-weight: 700; }
 
 /* More presets dropdown */
 .more-presets-wrap {

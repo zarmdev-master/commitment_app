@@ -291,6 +291,14 @@ function durationToMinutes(d: string): number {
   return (parseInt(parts[0]) || 0) * 60 + (parts[1] ? parseInt(parts[1].trim()) || 0 : 0);
 }
 
+// Convert minutes to display string (e.g. 75 → "1h 15", 45 → "45 min")
+function minutesToDuration(mins: number): string {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}`;
+}
+
 function extractEntryMinutes(activity: string): number {
   for (const d of DURATIONS) {
     if (activity.startsWith(d + ' ') || activity === d) return durationToMinutes(d);
@@ -427,13 +435,20 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
                 ))}
                 <input
                   className={`chip chip-custom-input${duration && !DURATIONS.includes(duration) ? ' active' : ''}`}
-                  placeholder="custom"
+                  placeholder="min"
+                  inputMode="numeric"
                   value={customDurInput}
                   onChange={e => {
-                    const val = e.target.value;
+                    const val = e.target.value.replace(/\D/g, '');
                     setCustomDurInput(val);
-                    setDuration(val.trim() || null);
-                    if (val.trim()) setDurError(false);
+                    const mins = parseInt(val);
+                    if (mins > 0) { setDuration(minutesToDuration(mins)); setDurError(false); }
+                    else setDuration(null);
+                  }}
+                  onBlur={() => {
+                    const mins = parseInt(customDurInput);
+                    if (mins > 0) { const fmt = minutesToDuration(mins); setCustomDurInput(fmt); setDuration(fmt); }
+                    else { setCustomDurInput(''); setDuration(null); }
                   }}
                 />
               </div>
