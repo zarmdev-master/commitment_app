@@ -925,7 +925,7 @@ function HevyTab({ activeUser, allYears, onImport }: {
     setLoading(true); setError('');
     try {
       let all: HevyWorkout[] = [];
-      const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000; // last 90 days
+      const cutoff = new Date('2026-01-01').getTime();
       let page = 1;
       while (true) {
         const res  = await fetch(`/api/hevy?page=${page}&pageSize=10`, {
