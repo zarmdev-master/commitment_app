@@ -578,9 +578,10 @@ button, input, select, textarea { font-family: inherit; }
   min-width: 36px; text-align: center; flex-shrink: 0; margin-top: 2px;
 }
 .day-badge-hevy {
-  background: #3b82f6 !important;
-  color: #fff !important;
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.4);
+  background: #000 !important;
+  color: var(--accent) !important;
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1px;
 }
 .activity-text { flex: 1; font-size: 0.85rem; line-height: 1.4; word-break: break-word; }
 .no-entries { color: var(--muted); font-size: 0.82rem; padding: 6px 0 12px; }
