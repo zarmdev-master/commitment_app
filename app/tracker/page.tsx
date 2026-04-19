@@ -263,6 +263,9 @@ function stripDuration(activity: string): string {
   for (const d of DURATIONS) {
     if (activity.startsWith(d + ' ')) return activity.slice(d.length + 1);
   }
+  // strip custom duration token (e.g. "1h 45 ", "90 min ")
+  const m = activity.match(/^(\d+h\s*\d*|\d+\s*min)\s+/i);
+  if (m) return activity.slice(m[0].length);
   return activity;
 }
 
@@ -292,6 +295,9 @@ function extractEntryMinutes(activity: string): number {
   for (const d of DURATIONS) {
     if (activity.startsWith(d + ' ') || activity === d) return durationToMinutes(d);
   }
+  // handle custom duration token at start of activity
+  const m = activity.match(/^(\d+h\s*\d*|\d+\s*min)/i);
+  if (m) return durationToMinutes(m[1].trim());
   return 0;
 }
 
@@ -307,6 +313,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
   const [day, setDay]               = useState(DAYS[0]);
   const [activity, setActivity]     = useState('');
   const [duration, setDuration]     = useState<string | null>(null);
+  const [customDurInput, setCustomDurInput] = useState('');
   const [durErrorKey, setDurErrorKey] = useState(0);
   const [durError, setDurError]     = useState(false);
   const [moreOpen, setMoreOpen]     = useState(false);
@@ -332,7 +339,7 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
     if (!activity.trim()) return;
     if (!duration) { setDurError(true); setDurErrorKey(k => k + 1); return; }
     onUpdate(month, localWi, [...week.days, { day, activity: `${duration} ${activity.trim()}` }]);
-    setActivity(''); setDuration(null); setDurError(false);
+    setActivity(''); setDuration(null); setCustomDurInput(''); setDurError(false);
   };
 
   return (
@@ -416,8 +423,19 @@ function WeekCard({ week, localWi, month, status, goal, presets, onUpdate, onDel
               <div className="chip-strip">
                 {DURATIONS.map(d => (
                   <button key={d} className={`chip${duration === d ? ' active' : ''}`}
-                    onClick={() => { setDuration(d); setDurError(false); }}>{d}</button>
+                    onClick={() => { setDuration(d); setCustomDurInput(''); setDurError(false); }}>{d}</button>
                 ))}
+                <input
+                  className={`chip chip-custom-input${duration && !DURATIONS.includes(duration) ? ' active' : ''}`}
+                  placeholder="custom"
+                  value={customDurInput}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setCustomDurInput(val);
+                    setDuration(val.trim() || null);
+                    if (val.trim()) setDurError(false);
+                  }}
+                />
               </div>
             </div>
 
