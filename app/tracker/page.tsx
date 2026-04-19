@@ -141,7 +141,7 @@ function isContaminated(data: AppState, user: string): boolean {
 }
 
 const CATEGORY_KEYWORDS: Record<Exclude<ActivityCategory, 'all' | 'other'>, string[]> = {
-  'padel':        ['padel'],
+  'padel':        ['padel', 'americano'],
   'gym':          ['gym', 'workout', 'work out', 'leg work', 'legs', 'push', 'pull',
                    'couples gym', 'home exercising', 'lady boss', 'ladyboss', 'core', 'mobility'],
   'beach-volley': ['beach', 'volley'],
@@ -150,7 +150,7 @@ const CATEGORY_KEYWORDS: Record<Exclude<ActivityCategory, 'all' | 'other'>, stri
 
 function getActivityCategory(activity: string): ActivityCategory {
   const base = stripDuration(activity).toLowerCase();
-  if (/padel/.test(base)) return 'padel';
+  if (/padel|americano/.test(base)) return 'padel';
   if (/gym|workout|work.?out|leg.?work|legs\b|push|pull|couples.?gym|home.?exerci|lady.?boss|core\b|mobility/.test(base)) return 'gym';
   if (/beach|volley/.test(base)) return 'beach-volley';
   if (/running|jogging/.test(base)) return 'running';
