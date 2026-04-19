@@ -919,6 +919,35 @@ select:focus, input[type="text"]:focus { border-color: var(--accent); }
 .ov-dot-star::before { content: '★'; }
 .month-ov-row-perfect .month-ov-wk-status { color: #f59e0b; }
 
+/* Keyword reference panel */
+.overview-kw-btn {
+  padding: 2px 8px; font-size: 0.75rem; border-radius: 999px;
+  border: 1.5px solid var(--border2); background: transparent; cursor: pointer;
+  color: var(--muted); line-height: 1.6; transition: background 0.15s, color 0.15s;
+}
+.overview-kw-btn:hover { background: var(--surface2); color: var(--fg); }
+.overview-kw-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.overview-kw-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 6px;
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 0.75rem;
+}
+.overview-kw-row {
+  display: flex; gap: 8px; align-items: baseline;
+}
+.overview-kw-cat {
+  font-weight: 600; color: var(--accent); min-width: 90px; flex-shrink: 0;
+  text-transform: capitalize;
+}
+.overview-kw-list {
+  color: var(--muted); flex: 1;
+}
+
 /* Year strip */
 .overview-year-strip {
   display: flex; gap: 6px; flex-wrap: wrap;

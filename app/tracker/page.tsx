@@ -140,10 +140,18 @@ function isContaminated(data: AppState, user: string): boolean {
   );
 }
 
+const CATEGORY_KEYWORDS: Record<Exclude<ActivityCategory, 'all' | 'other'>, string[]> = {
+  'padel':        ['padel'],
+  'gym':          ['gym', 'workout', 'work out', 'leg work', 'legs', 'push', 'pull',
+                   'couples gym', 'home exercising', 'lady boss', 'ladyboss', 'core', 'mobility'],
+  'beach-volley': ['beach', 'volley'],
+  'running':      ['running', 'jogging'],
+};
+
 function getActivityCategory(activity: string): ActivityCategory {
   const base = stripDuration(activity).toLowerCase();
   if (/padel/.test(base)) return 'padel';
-  if (/gym|workout|work.?out|leg.?work|push|pull|couples.?gym|home.?exerci/.test(base)) return 'gym';
+  if (/gym|workout|work.?out|leg.?work|legs\b|push|pull|couples.?gym|home.?exerci|lady.?boss|core\b|mobility/.test(base)) return 'gym';
   if (/beach|volley/.test(base)) return 'beach-volley';
   if (/running|jogging/.test(base)) return 'running';
   return 'other';
@@ -678,6 +686,7 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
   const availableYears = Object.keys(allYears).sort().reverse();
   const [selectedYear, setSelectedYear] = useState(availableYears[0] || CURRENT_YEAR);
   const [filters, setFilters] = useState<ActivityCategory[]>(['all']);
+  const [showKeywords, setShowKeywords] = useState(false);
 
   const allMonths    = allYears[selectedYear] || {};
   const activeMonths = MONTHS.filter(m => (allMonths[m] || []).some(w => w.days.length > 0));
@@ -726,8 +735,28 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
               onClick={() => toggleFilter(cat)}
             >{CATEGORY_LABELS[cat]}</button>
           ))}
+          <button
+            className={`chip overview-kw-btn${showKeywords ? ' active' : ''}`}
+            onClick={() => setShowKeywords(v => !v)}
+            title="Show keyword mapping"
+          >ⓘ</button>
         </div>
       </div>
+
+      {showKeywords && (
+        <div className="overview-kw-panel">
+          {(Object.entries(CATEGORY_KEYWORDS) as [Exclude<ActivityCategory, 'all' | 'other'>, string[]][]).map(([cat, kws]) => (
+            <div key={cat} className="overview-kw-row">
+              <span className="overview-kw-cat">{CATEGORY_LABELS[cat]}</span>
+              <span className="overview-kw-list">{kws.join(', ')}</span>
+            </div>
+          ))}
+          <div className="overview-kw-row">
+            <span className="overview-kw-cat">{CATEGORY_LABELS['other']}</span>
+            <span className="overview-kw-list">everything else</span>
+          </div>
+        </div>
+      )}
 
       {/* Year strip */}
       <div className="overview-year-strip">
