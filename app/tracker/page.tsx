@@ -751,10 +751,12 @@ export default function TrackerPage() {
   const [newMonthSel, setNewMonthSel] = useState('');
   const [activeTab, setActiveTab] = useState<'log' | 'overview'>('log');
   const loadedForUser = useRef('');
+  const cloudSyncedRef = useRef(false);
 
   // Reload data when user switches
   useEffect(() => {
     let cancelled = false;
+    cloudSyncedRef.current = false;
     setHydrated(false);
     const now       = new Date();
     const realMonth = MONTHS[now.getMonth()];
@@ -806,12 +808,13 @@ export default function TrackerPage() {
         (weeks) => (weeks as Week[]).some(w => w.days.length > 0)
       );
       if (!hasCloudActivity && SEED_DATA[activeUser]) return;
+      cloudSyncedRef.current = true;
       setState((prev: AppState) => {
         const base = applyDefaults(cloud);
         base.allMonths = mergeAllMonths(prev.allMonths, base.allMonths);
         return base;
       });
-    });
+    }).catch(() => { cloudSyncedRef.current = true; });
 
     return () => { cancelled = true; };
   }, [activeUser]);
@@ -821,7 +824,9 @@ export default function TrackerPage() {
     if (!hydrated || loadedForUser.current !== activeUser) return;
     const key = `pacepal_tracker_${activeUser}`;
     localStorage.setItem(key, JSON.stringify(state));
-    saveUserData(activeUser, state);
+    // Only push to Supabase after cloud data has been processed — prevents
+    // stale localStorage from overwriting a newer cloud record on initial load
+    if (cloudSyncedRef.current) saveUserData(activeUser, state);
   }, [state, hydrated, activeUser]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
