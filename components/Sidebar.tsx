@@ -32,29 +32,84 @@ function UserPhoto({ name, className, style }: {
   );
 }
 
+const ADMIN_PASSWORD = 'gingagooddes';
+
 // Shared user menu content (used in both desktop and mobile)
 function UserMenuContent({
   users, activeUser, adding, newName, inputRef,
-  onSelect, onStartAdding, onNameChange, onNameKey, onAdd,
+  onSelect, onStartAdding, onNameChange, onNameKey, onAdd, onDelete,
 }: {
   users: string[]; activeUser: string; adding: boolean; newName: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onSelect: (u: string) => void; onStartAdding: () => void;
   onNameChange: (v: string) => void; onNameKey: (e: React.KeyboardEvent) => void;
-  onAdd: () => void;
+  onAdd: () => void; onDelete: (name: string) => void;
 }) {
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const [deletePass, setDeletePass]     = useState('');
+  const [deleteError, setDeleteError]   = useState(false);
+  const [deleteErrKey, setDeleteErrKey] = useState(0);
+  const passRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (deletingUser) passRef.current?.focus(); }, [deletingUser]);
+
+  const startDelete = (u: string) => {
+    setDeletingUser(u); setDeletePass(''); setDeleteError(false);
+  };
+
+  const cancelDelete = () => {
+    setDeletingUser(null); setDeletePass(''); setDeleteError(false);
+  };
+
+  const confirmDelete = () => {
+    if (deletePass === ADMIN_PASSWORD) {
+      onDelete(deletingUser!);
+      cancelDelete();
+    } else {
+      setDeleteError(true);
+      setDeleteErrKey(k => k + 1);
+      setDeletePass('');
+      setTimeout(() => setDeleteError(false), 600);
+    }
+  };
+
+  const handlePassKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') confirmDelete();
+    if (e.key === 'Escape') cancelDelete();
+  };
+
   return (
     <>
       {users.map(u => (
-        <button
-          key={u}
-          className={`user-menu-item${u === activeUser ? ' active' : ''}`}
-          onClick={() => onSelect(u)}
-        >
-          <UserPhoto name={u} className="user-avatar-sm" style={{ borderRadius: '50%' }} />
-          {u}
-          {u === activeUser && <span className="user-check">✓</span>}
-        </button>
+        <div key={u}>
+          <div className={`user-menu-item${u === activeUser ? ' active' : ''}`}>
+            <button className="user-menu-item-inner" onClick={() => onSelect(u)}>
+              <UserPhoto name={u} className="user-avatar-sm" style={{ borderRadius: '50%' }} />
+              {u}
+              {u === activeUser && <span className="user-check">✓</span>}
+            </button>
+            {users.length > 1 && (
+              <button
+                className="user-delete-btn"
+                title={`Delete ${u}`}
+                onClick={e => { e.stopPropagation(); deletingUser === u ? cancelDelete() : startDelete(u); }}
+              >🗑</button>
+            )}
+          </div>
+          {deletingUser === u && (
+            <div key={deleteErrKey} className={`user-delete-row${deleteError ? ' delete-error' : ''}`}>
+              <input
+                ref={passRef}
+                type="password"
+                placeholder="Admin password…"
+                value={deletePass}
+                onChange={e => setDeletePass(e.target.value)}
+                onKeyDown={handlePassKey}
+              />
+              <button onClick={confirmDelete}>Delete</button>
+            </div>
+          )}
+        </div>
       ))}
       <div className="user-menu-divider" />
       {adding ? (
@@ -69,7 +124,7 @@ function UserMenuContent({
           <button onClick={onAdd}>Add</button>
         </div>
       ) : (
-        <button className="user-menu-item" onClick={onStartAdding}>
+        <button className="user-menu-item user-menu-item-inner" onClick={onStartAdding}>
           <span style={{ fontSize: '1rem', lineHeight: 1 }}>+</span> Add user
         </button>
       )}
@@ -79,7 +134,7 @@ function UserMenuContent({
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { users, activeUser, setActiveUser, addUser } = useUser();
+  const { users, activeUser, setActiveUser, addUser, deleteUser } = useUser();
 
   const [menuOpen,  setMenuOpen]  = useState(false);
   const [adding,    setAdding]    = useState(false);
@@ -133,6 +188,7 @@ export default function Sidebar() {
     onNameChange: setNewName,
     onNameKey: handleNameKey,
     onAdd: handleAdd,
+    onDelete: deleteUser,
   };
 
   return (

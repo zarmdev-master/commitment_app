@@ -176,6 +176,43 @@ button, input, select, textarea { font-family: inherit; }
 
 .user-menu-divider { height: 1px; background: var(--border); margin: 5px 2px; }
 
+.user-menu-item { position: relative; padding: 0; }
+.user-menu-item-inner {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 8px 36px 8px 12px;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 0.9rem; text-align: left;
+  min-height: 44px; flex: 1;
+}
+.user-menu-item-inner:hover { color: var(--text); }
+.user-menu-item.active .user-menu-item-inner { color: var(--text); }
+.user-delete-btn {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  font-size: 0.85rem; padding: 4px 6px; opacity: 0;
+  color: var(--muted); transition: opacity 0.15s, color 0.15s;
+}
+.user-menu-item:hover .user-delete-btn { opacity: 1; }
+.user-delete-btn:hover { color: var(--danger) !important; opacity: 1; }
+
+.user-delete-row { display: flex; gap: 6px; padding: 4px 4px 6px; }
+.user-delete-row input {
+  flex: 1; font-size: 0.85rem;
+  padding: 8px 10px; background: var(--card2);
+  border: 1px solid var(--border2); border-radius: 7px;
+  color: var(--text); outline: none; min-height: 40px;
+}
+.user-delete-row input:focus { border-color: var(--danger); }
+.user-delete-row button {
+  padding: 8px 12px; font-size: 0.8rem; font-weight: 700;
+  background: var(--danger); color: #fff;
+  border: none; border-radius: 7px; cursor: pointer; min-height: 40px;
+}
+.user-delete-row button:hover { opacity: 0.88; }
+.user-delete-row.delete-error input {
+  border-color: var(--danger); animation: shake 0.3s ease;
+}
+
 .user-add-row { display: flex; gap: 6px; padding: 4px; }
 .user-add-row input {
   flex: 1; font-size: 0.85rem;

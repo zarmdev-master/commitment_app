@@ -9,6 +9,7 @@ type UserContextType = {
   activeUser: string;
   setActiveUser: (name: string) => void;
   addUser: (name: string) => void;
+  deleteUser: (name: string) => void;
 };
 
 const UserContext = createContext<UserContextType>({
@@ -16,6 +17,7 @@ const UserContext = createContext<UserContextType>({
   activeUser: DEFAULT_USERS[0],
   setActiveUser: () => {},
   addUser: () => {},
+  deleteUser: () => {},
 });
 
 export function useUser() {
@@ -56,13 +58,30 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setActiveUser(trimmed);
   };
 
+  const deleteUser = (name: string) => {
+    setUsers(prev => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter(u => u !== name);
+      localStorage.setItem('pacepal_users', JSON.stringify(next));
+      localStorage.removeItem(`pacepal_tracker_${name}`);
+      return next;
+    });
+    setActiveUserState(prev => {
+      if (prev !== name) return prev;
+      const remaining = users.filter(u => u !== name);
+      const fallback = remaining[0] ?? DEFAULT_USERS[0];
+      localStorage.setItem('pacepal_active_user', fallback);
+      return fallback;
+    });
+  };
+
   // Persist user list changes
   useEffect(() => {
     if (ready) localStorage.setItem('pacepal_users', JSON.stringify(users));
   }, [users, ready]);
 
   return (
-    <UserContext.Provider value={{ users, activeUser, setActiveUser, addUser }}>
+    <UserContext.Provider value={{ users, activeUser, setActiveUser, addUser, deleteUser }}>
       {children}
     </UserContext.Provider>
   );
