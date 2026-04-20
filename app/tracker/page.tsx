@@ -624,6 +624,10 @@ function MonthOverviewCard({ month, weeks, statuses, goal, filters }: {
   const sessions  = filteredEntries.length;
   const hours     = mins / 60;
   const avgMins   = sessions > 0 ? Math.round(mins / sessions) : 0;
+  const activeWeeksCount = weeks.filter(w =>
+    w.days.some(e => isAllSelected || filters.includes(getActivityCategory(e.activity)))
+  ).length;
+  const avgSessionsPerWeek = activeWeeksCount > 0 ? (sessions / activeWeeksCount).toFixed(1) : null;
   const summary   = computeMonthSummary(weeks, statuses);
   const hasPerfect = weeks.some(w => uniqueDays(w) === 7);
   const passedIcon = summary ? (summary.allPassed ? '✅' : '❌') : null;
@@ -678,6 +682,12 @@ function MonthOverviewCard({ month, weeks, statuses, goal, filters }: {
         <span>{hours >= 1 ? hours.toFixed(1) + 'h' : mins > 0 ? mins + 'min' : '—'}</span>
         <span className="ov-sep">·</span>
         <span>avg {avgMins > 0 ? avgMins + 'min' : '—'}</span>
+        {avgSessionsPerWeek && (
+          <>
+            <span className="ov-sep">·</span>
+            <span>{avgSessionsPerWeek} sessions/wk</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -690,11 +700,13 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
   const [selectedYear, setSelectedYear] = useState(availableYears[0] || CURRENT_YEAR);
   const [filters, setFilters] = useState<ActivityCategory[]>(['all']);
   const [showKeywords, setShowKeywords] = useState(false);
+  const [selectedMonthsFilter, setSelectedMonthsFilter] = useState<string[]>(['all']);
 
   const allMonths    = allYears[selectedYear] || {};
   const activeMonths = MONTHS.filter(m => (allMonths[m] || []).some(w => w.days.length > 0));
 
   const isAllSelected = filters.includes('all');
+  const allMonthsSelected = selectedMonthsFilter.includes('all');
 
   const toggleFilter = (cat: ActivityCategory) => {
     if (cat === 'all') { setFilters(['all']); return; }
@@ -706,15 +718,29 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
     });
   };
 
+  const toggleMonthFilter = (month: string) => {
+    if (month === 'all') { setSelectedMonthsFilter(['all']); return; }
+    setSelectedMonthsFilter((prev: string[]) => {
+      const without = prev.filter((m: string) => m !== 'all' && m !== month);
+      const adding  = !prev.includes(month);
+      const next    = adding ? [...without, month] : without;
+      return next.length === 0 ? ['all'] : next;
+    });
+  };
+
+  const displayMonths = allMonthsSelected
+    ? activeMonths
+    : activeMonths.filter(m => selectedMonthsFilter.includes(m));
+
   const filterEntries = (entries: Entry[]) =>
     isAllSelected ? entries : entries.filter(e => filters.includes(getActivityCategory(e.activity)));
 
-  const yearEntries  = activeMonths.flatMap(m => (allMonths[m] || []).flatMap(w => filterEntries(w.days)));
+  const yearEntries  = displayMonths.flatMap(m => (allMonths[m] || []).flatMap(w => filterEntries(w.days)));
   const yearMins     = yearEntries.reduce((s, e) => s + extractEntryMinutes(e.activity), 0);
   const yearHours    = yearMins / 60;
   const yearSessions = yearEntries.length;
   const avgSession   = yearSessions > 0 ? Math.round(yearMins / yearSessions) : 0;
-  const totalActiveWeeks = activeMonths.reduce((sum, m) =>
+  const totalActiveWeeks = displayMonths.reduce((sum, m) =>
     sum + (allMonths[m] || []).filter(w => filterEntries(w.days).length > 0).length, 0);
   const avgPerWeek = totalActiveWeeks > 0 ? (yearSessions / totalActiveWeeks).toFixed(1) : null;
 
@@ -727,7 +753,7 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
       {/* Controls row: year + activity filter */}
       <div className="overview-controls">
         {availableYears.length > 1 ? (
-          <select className="overview-year-sel" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+          <select className="overview-year-sel" value={selectedYear} onChange={e => { setSelectedYear(e.target.value); setSelectedMonthsFilter(['all']); }}>
             {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         ) : (
@@ -747,6 +773,21 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
             title="Show keyword mapping"
           >ⓘ</button>
         </div>
+        {activeMonths.length > 1 && (
+          <div className="overview-filter-chips" style={{ marginTop: 6 }}>
+            <button
+              className={`chip${allMonthsSelected ? ' active' : ''}`}
+              onClick={() => toggleMonthFilter('all')}
+            >All</button>
+            {activeMonths.map(m => (
+              <button
+                key={m}
+                className={`chip${!allMonthsSelected && selectedMonthsFilter.includes(m) ? ' active' : ''}`}
+                onClick={() => toggleMonthFilter(m)}
+              >{m.slice(0, 3)}</button>
+            ))}
+          </div>
+        )}
       </div>
 
       {showKeywords && (
@@ -808,13 +849,13 @@ function OverviewTab({ allYears, goal }: { allYears: AllYears; goal: number }) {
         </div>
         <div className="ov-total-item">
           <span className="ov-total-val">{avgPerWeek ?? '—'}</span>
-          <span className="ov-total-lbl">avg/week</span>
+          <span className="ov-total-lbl">sessions/wk</span>
         </div>
       </div>
 
       {/* Monthly cards */}
       <div className="overview-months-grid">
-        {activeMonths.map(m => (
+        {displayMonths.map(m => (
           <MonthOverviewCard
             key={m} month={m}
             weeks={allMonths[m] || []}
